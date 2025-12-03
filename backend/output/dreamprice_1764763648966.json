@@ -1,0 +1,335 @@
+{
+  "header": {
+    "CustomerName": "PAGE 1 ",
+    "CustomerCode": "C07023932",
+    "PONumber": "8821",
+    "DeliveryDate": "24/07/2025",
+    "OrderDate": "24/07/2025"
+  },
+  "rows": [
+    {
+      "_id": 1,
+      "Barcode": "06091188706772",
+      "Description": "ROOM SPRAY CITRONELLA 125ML",
+      "Tax": "VAT",
+      "Qty": "12",
+      "PU_HT": "97.75",
+      "Total_HT": "1,173.00"
+    },
+    {
+      "_id": 2,
+      "Barcode": "08901207000324",
+      "Description": "DABUR RED TOOTHPASTE 200G",
+      "Tax": "ZERO",
+      "Qty": "60",
+      "PU_HT": "86.93",
+      "Total_HT": "5,215.50"
+    },
+    {
+      "_id": 3,
+      "Barcode": "06291069744095",
+      "Description": "DABUR TP HERBAL CHARCOAL150G",
+      "Tax": "ZERO",
+      "Qty": "12",
+      "PU_HT": "93.10",
+      "Total_HT": "1,117.20"
+    },
+    {
+      "_id": 4,
+      "Barcode": "08901207099106",
+      "Description": "DABUR TP RED CLOVE&MINT100G",
+      "Tax": "ZERO",
+      "Qty": "48",
+      "PU_HT": "47.03",
+      "Total_HT": "2,257.20"
+    },
+    {
+      "_id": 5,
+      "Barcode": "08901023002373",
+      "Description": "GODREJ CINTHOL SOAP COLOGNE 125G",
+      "Tax": "VAT",
+      "Qty": "24",
+      "PU_HT": "30.40",
+      "Total_HT": "729.60"
+    },
+    {
+      "_id": 6,
+      "Barcode": "08690937001779",
+      "Description": "HOBBY H/W S/FLOWER 400M",
+      "Tax": "VAT",
+      "Qty": "24",
+      "PU_HT": "49.40",
+      "Total_HT": "1,185.60"
+    },
+    {
+      "_id": 7,
+      "Barcode": "08690937012812",
+      "Description": "HOBBY LIQUID SOAP REFILL ROMANTIC 1500ML",
+      "Tax": "VAT",
+      "Qty": "16",
+      "PU_HT": "133.00",
+      "Total_HT": "2,128.00"
+    },
+    {
+      "_id": 8,
+      "Barcode": "08904018301369",
+      "Description": "MEDIMIX F/W MOISTURISNG150M",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "166.60",
+      "Total_HT": "999.60"
+    },
+    {
+      "_id": 9,
+      "Barcode": "08904018300171",
+      "Description": "MEDIMX F/W ANTI TAN 150ML",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "166.60",
+      "Total_HT": "999.60"
+    },
+    {
+      "_id": 10,
+      "Barcode": "05020353052612",
+      "Description": "SCION BIO GLOW FACE&BODY SCRUB APRICOT&PEACH 500 ML",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "156.75",
+      "Total_HT": "940.50"
+    },
+    {
+      "_id": 11,
+      "Barcode": "08690937001847",
+      "Description": "HOBBY B/W RASPBERRY 300M",
+      "Tax": "VAT",
+      "Qty": "24",
+      "PU_HT": "47.50",
+      "Total_HT": "1,140.00"
+    },
+    {
+      "_id": 12,
+      "Barcode": "08690937001823",
+      "Description": "HOBBY B/W SENSUAL THERAPY300M",
+      "Tax": "VAT",
+      "Qty": "24",
+      "PU_HT": "47.50",
+      "Total_HT": "1,140.00"
+    },
+    {
+      "_id": 13,
+      "Barcode": "08690937009409",
+      "Description": "HOBBY MARSHMALLOW BODY WASH STRAWBERRY 500ML",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "76.00",
+      "Total_HT": "456.00"
+    },
+    {
+      "_id": 14,
+      "Barcode": "08888202032430",
+      "Description": "ENCHANTEUR HB/L ROMANTIC200M",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "109.25",
+      "Total_HT": "655.50"
+    },
+    {
+      "_id": 15,
+      "Barcode": "08888202027412",
+      "Description": "ENCHANTEUR TALC CHARMING200G",
+      "Tax": "VAT",
+      "Qty": "12",
+      "PU_HT": "125.40",
+      "Total_HT": "1,504.80"
+    },
+    {
+      "_id": 16,
+      "Barcode": "08992856898646",
+      "Description": "ENCHANTEUR TALC ENTICING200G",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "125.40",
+      "Total_HT": "752.40"
+    },
+    {
+      "_id": 17,
+      "Barcode": "06291069208238",
+      "Description": "DABUR VATIKA SHAMPOO REPAIR & RESTORE 400 ML",
+      "Tax": "VAT",
+      "Qty": "12",
+      "PU_HT": "200.45",
+      "Total_HT": "2,405.40"
+    },
+    {
+      "_id": 18,
+      "Barcode": "08690937000475",
+      "Description": "HOBBY SHP ARGAN&CAM 600M",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "95.00",
+      "Total_HT": "570.00"
+    },
+    {
+      "_id": 19,
+      "Barcode": "00000086910880",
+      "Description": "HOBBY SHP ROSE 600M",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "95.00",
+      "Total_HT": "570.00"
+    },
+    {
+      "_id": 20,
+      "Barcode": "06291069704037",
+      "Description": "DABUR VATIKA H OIL B/SEED200M",
+      "Tax": "VAT",
+      "Qty": "12",
+      "PU_HT": "118.75",
+      "Total_HT": "1,425.00"
+    },
+    {
+      "_id": 21,
+      "Barcode": "06291069651034",
+      "Description": "DABUR VATIKA H OIL CACTUS200M",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "118.75",
+      "Total_HT": "712.50"
+    },
+    {
+      "_id": 22,
+      "Barcode": "08901088000451",
+      "Description": "PARACHUTE NAT COCONUT OIL500M",
+      "Tax": "VAT",
+      "Qty": "36",
+      "PU_HT": "128.25",
+      "Total_HT": "4,617.00"
+    },
+    {
+      "_id": 23,
+      "Barcode": "08901088203913",
+      "Description": "PARACHUTE ADVANSED ONION COCONUT HAIR OIL 200 ML",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "109.25",
+      "Total_HT": "655.50"
+    },
+    {
+      "_id": 24,
+      "Barcode": "06291069701753",
+      "Description": "DABUR HENNA COL BLACK 60G",
+      "Tax": "VAT",
+      "Qty": "12",
+      "PU_HT": "84.08",
+      "Total_HT": "1,008.90"
+    },
+    {
+      "_id": 25,
+      "Barcode": "08901023030932",
+      "Description": "GODREJ EXPERT HAIR COLOUR D BROWN NO 4.06 50ML",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "76.00",
+      "Total_HT": "456.00"
+    },
+    {
+      "_id": 26,
+      "Barcode": "05022496100113",
+      "Description": "VATIKA H CREAM DANDRUFF G140M",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "89.25",
+      "Total_HT": "535.50"
+    },
+    {
+      "_id": 27,
+      "Barcode": "08992856890817",
+      "Description": "ENCHANTEUR IZZI BODY MIST DAZZLING LOVE 100ML",
+      "Tax": "VAT",
+      "Qty": "12",
+      "PU_HT": "71.73",
+      "Total_HT": "860.70"
+    },
+    {
+      "_id": 28,
+      "Barcode": "08992856890824",
+      "Description": "ENCHANTEUR IZZI BODY MIST SWEET LOVE 100ML",
+      "Tax": "VAT",
+      "Qty": "12",
+      "PU_HT": "71.73",
+      "Total_HT": "860.70"
+    },
+    {
+      "_id": 29,
+      "Barcode": "08992856891654",
+      "Description": "ENCHANTEUR IZZI BODY MIST TRUE LOVE 100ML",
+      "Tax": "VAT",
+      "Qty": "12",
+      "PU_HT": "71.73",
+      "Total_HT": "860.70"
+    },
+    {
+      "_id": 30,
+      "Barcode": "08935212812986",
+      "Description": "ROMANO DEODORANT SPRAY VIP VISION 150ML",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "95.00",
+      "Total_HT": "570.00"
+    },
+    {
+      "_id": 31,
+      "Barcode": "06291012875791",
+      "Description": "SCION DC EDT WOMEN ANGELIC DELIGHT 100M",
+      "Tax": "VAT",
+      "Qty": "3",
+      "PU_HT": "118.75",
+      "Total_HT": "356.25"
+    },
+    {
+      "_id": 32,
+      "Barcode": "08935212810111",
+      "Description": "ROMANO AP ROLL ON DEO CLASSIC 50ML",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "85.50",
+      "Total_HT": "513.00"
+    },
+    {
+      "_id": 33,
+      "Barcode": "08935212810845",
+      "Description": "ROMANO AP ROLL ON DEO FORCE 50Ml",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "85.50",
+      "Total_HT": "513.00"
+    },
+    {
+      "_id": 34,
+      "Barcode": "08935212812412",
+      "Description": "ROMANO AP ROLL ON DEO GENTLEMEN 50ML",
+      "Tax": "VAT",
+      "Qty": "6",
+      "PU_HT": "85.50",
+      "Total_HT": "513.00"
+    },
+    {
+      "_id": 35,
+      "Barcode": "06927022237068",
+      "Description": "AAB BABY DIAPERS ECO PACK XTRA LARGE*26",
+      "Tax": "ZERO",
+      "Qty": "10",
+      "PU_HT": "138.00",
+      "Total_HT": "1,380.00"
+    },
+    {
+      "_id": 36,
+      "Barcode": "06091188702996",
+      "Description": "AAB ADULT WIPES*80",
+      "Tax": "VAT",
+      "Qty": "24",
+      "PU_HT": "99.75",
+      "Total_HT": "2,394.00"
+    }
+  ]
+}

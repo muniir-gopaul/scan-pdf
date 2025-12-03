@@ -1,0 +1,32 @@
+{
+  "Barcode": ["barcode", "ean", "eanprincipal", "ean principal", "bar code"],
+  "ItemCode": [
+    "itemcode",
+    "item code",
+    "article",
+    "article no",
+    "article number",
+    "n° article"
+  ],
+  "Description": [
+    "description",
+    "libellé",
+    "label",
+    "item",
+    "product name",
+    "desc"
+  ],
+  "Qty": ["Qty", "Quantity", "QTY", "Qte"],
+  "StockQty": ["stock", "stock qty", "stock quantity", "stockqty", "inventory"],
+  "PU_HT": ["PU_HT", "PU (HT)", "PUHT", "PU-HT", "UnitPrice", "Unit Price"],
+  "POPrice": [
+    "price",
+    "unit price",
+    "pu",
+    "pu_ht",
+    "purchase price",
+    "prix achat",
+    "prix",
+    "price mur"
+  ]
+}
