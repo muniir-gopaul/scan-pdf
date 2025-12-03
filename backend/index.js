@@ -1,8 +1,11 @@
 // server/index.js
+require("dotenv").config(); // ✅ Load .env
+
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
 const cors = require("cors");
+
 // Extractors
 const { extractDreamprice } = require("./extractors/dreamprice");
 const { extractWinners } = require("./extractors/winners");
@@ -16,29 +19,55 @@ try {
 }
 
 const app = express();
+
+//  DYNAMIC CORS (DEV + IIS + PROD SAFE)
+const allowedOrigins = [
+  "http://localhost:9000", // Quasar dev
+  "http://localhost:8090", // IIS
+  "http://127.0.0.1:8090",
+];
+
 app.use(
   cors({
-    origin: "http://localhost:9000",
+    origin: function (origin, callback) {
+      // Allow server-to-server or tools like Postman
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("CORS BLOCKED: " + origin), false);
+    },
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// routes
+// ✅ API routes
 app.use("/api/customers", require("./api/routes/customers"));
 app.use("/api/extract", require("./api/routes/extract"));
 app.use("/api/pdf", require("./api/routes/pdf"));
 app.use("/api/auth", require("./api/routes/auth"));
 
-// Upload folder
+// ✅ Upload folder
 const upload = multer({
   dest: path.join(__dirname, "uploads/"),
 });
 
-// Serve Excel/JSON from /output
+// ✅ Serve Excel/JSON from /output
 app.use("/output", express.static(path.join(__dirname, "output")));
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`PDF extractor listening on ${PORT}`));
+// ✅ Global error handler
+app.use((err, req, res, next) => {
+  console.error("🔥 Server Error:", err.message);
+  res.status(500).json({
+    success: false,
+    message: "Internal server error",
+  });
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`✅ Express API running on port ${PORT}`));

@@ -46,7 +46,7 @@ async function onSubmit() {
   loading.value = true
 
   try {
-    const res = await axios.post('http://localhost:9000/api/auth/login', {
+    const res = await axios.post('/api/auth/login', {
       CompanyDB: companyDB.value,
       UserName: username.value,
       Password: password.value,
