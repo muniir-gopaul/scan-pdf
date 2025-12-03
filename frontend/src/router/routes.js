@@ -1,4 +1,16 @@
 const routes = [
+  // ✅ ROOT ROUTE (FIXES YOUR 404)
+  {
+    path: '/',
+    component: () => import('layouts/MainLayout.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('pages/LoginPage.vue'), // default landing page
+      },
+    ],
+  },
+
   {
     path: '/login',
     component: () => import('layouts/MainLayout.vue'),
@@ -12,7 +24,7 @@ const routes = [
     children: [{ path: '', component: () => import('pages/ParserPage.vue') }],
   },
 
-  // Always leave this as last one
+  // ✅ MUST ALWAYS BE LAST
   {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),
