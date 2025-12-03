@@ -38,6 +38,9 @@ export default defineConfig((/* ctx */) => {
       },
 
       vueRouterMode: 'hash', // available values: 'hash', 'history'
+      env: {
+        API_BASE_URL: '/api',
+      },
       // vueRouterBase,
       // vueDevtools,
       // vueOptionsAPI: false,
@@ -68,6 +71,8 @@ export default defineConfig((/* ctx */) => {
           { server: false },
         ],
       ],
+
+      publicPath: '/',
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
