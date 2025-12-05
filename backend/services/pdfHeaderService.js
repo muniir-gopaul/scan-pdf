@@ -6,21 +6,34 @@ const { sql, pool } = require("../api/db");
 function fixDate(input) {
   if (!input) return null;
 
-  // Already valid full ISO date
-  if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
-    return new Date(input);
+  let dateStr = input.trim();
+
+  // Case 1: Already valid ISO yyyy-mm-dd
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
   }
 
-  // Formats: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
-  const match = input.match(/^(\d{2})[\/\-.](\d{2})[\/\-.](\d{4})$/);
+  // Case 2: DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+  let match = dateStr.match(/^(\d{2})[./-](\d{2})[./-](\d{4})$/);
   if (match) {
     const [_, dd, mm, yyyy] = match;
-    return new Date(`${yyyy}-${mm}-${dd}`);
+    return `${yyyy}-${mm}-${dd}`;
   }
 
-  // Try letting JS parse it
-  const d = new Date(input);
-  return isNaN(d.getTime()) ? null : d;
+  // Case 3: YYYY/MM/DD or YYYY.MM.DD or YYYY-MM-DD
+  match = dateStr.match(/^(\d{4})[./-](\d{2})[./-](\d{2})$/);
+  if (match) {
+    const [_, yyyy, mm, dd] = match;
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // Fallback: JS parser attempt
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().slice(0, 10);
+  }
+
+  return null;
 }
 
 /* ---------------------------------------

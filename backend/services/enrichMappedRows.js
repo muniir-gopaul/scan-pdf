@@ -5,11 +5,11 @@ const { sql, pool } = require("../api/db");
 ---------------------------------------- */
 function cleanBarcode(bc) {
   if (!bc) return "";
-  return bc.toString().trim().replace(/^0+/, ""); // ← ONLY REMOVE LEADING 0
+  return bc.toString().trim().replace(/^0+/, "");
 }
 
 /* ---------------------------------------
-   EXACT SAP DB LOOKUP (no variations)
+   EXACT SAP DB LOOKUP
 ---------------------------------------- */
 async function lookupItemByBarcode(barcode) {
   if (!barcode) return null;
@@ -29,7 +29,6 @@ async function lookupItemByBarcode(barcode) {
     request.input("barcode", sql.VarChar, barcode);
 
     const result = await request.query(query);
-
     return result.recordset[0] || null;
   } catch (err) {
     console.error("❌ SAP Lookup Error:", err.message);
@@ -38,36 +37,56 @@ async function lookupItemByBarcode(barcode) {
 }
 
 /* ---------------------------------------
-   ENRICH PDF ROWS
+   ENRICH PDF ROWS WITH ALL RULES
 ---------------------------------------- */
 async function enrichMappedRows(mappedRows) {
   const final = [];
 
   for (const row of mappedRows) {
     const cleanedBarcode = cleanBarcode(row.Barcode);
-
     const dbItem = await lookupItemByBarcode(cleanedBarcode);
 
     const enriched = { ...row };
-    console.log("enriched:", enriched);
-    console.log("dbItem:", dbItem);
-    console.log("cleanedBarcode:", cleanedBarcode);
 
+    /* ------------------------------
+        FILL ERP DATA IF FOUND
+    ------------------------------ */
     if (dbItem) {
       enriched.ItemCode = dbItem.ItemCode;
       enriched.Description = dbItem.ItemName;
       enriched.DBDescription = dbItem.ItemName;
       enriched.StockQty = dbItem.AvailForSale ?? 0;
-      enriched.Barcode = dbItem.Barcode;
+
+      // SHOW CLEANED BARCODE IN UI AND ERP TABLE
+      enriched.Barcode = cleanedBarcode;
+
+      enriched.SAPBarcode = dbItem.Barcode;
+
       enriched.DBMatch = true;
     } else {
       enriched.DBMatch = false;
       enriched.DBDescription = "";
       enriched.StockQty = 0;
       enriched.ItemCode = "";
+
+      // Show cleaned barcode even when no match
+      enriched.Barcode = cleanedBarcode;
     }
 
-    enriched.NotPostToSAP = Number(enriched.StockQty) < Number(enriched.Qty);
+    /* ------------------------------
+        BUSINESS RULE:
+        When to BLOCK (NotPostToSAP = true)
+        - Missing ItemCode
+        - StockQty <= 0
+        - StockQty < Qty
+    ------------------------------ */
+    const qty = Number(enriched.Qty ?? 0);
+    const stock = Number(enriched.StockQty ?? 0);
+
+    enriched.NotPostToSAP =
+      !enriched.ItemCode || // missing item
+      stock <= 0 || // zero or negative stock
+      stock < qty; // insufficient stock
 
     final.push(enriched);
   }

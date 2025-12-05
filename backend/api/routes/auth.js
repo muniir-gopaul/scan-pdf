@@ -1,3 +1,4 @@
+// backend/api/routes/auth.js
 const express = require("express");
 const router = express.Router();
 const { sapLogin } = require("../../services/sapClient");
@@ -18,7 +19,6 @@ router.post("/login", async (req, res) => {
     return res.status(401).json(result);
   }
 
-  // ✅ Send session safely to frontend
   res.json({
     success: true,
     sessionId: result.sessionId,

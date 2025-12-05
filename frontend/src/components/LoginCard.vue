@@ -46,7 +46,7 @@ async function onSubmit() {
   loading.value = true
 
   try {
-    const res = await axios.post('/api/auth/login', {
+    const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
       CompanyDB: companyDB.value,
       UserName: username.value,
       Password: password.value,
@@ -58,16 +58,23 @@ async function onSubmit() {
       return
     }
 
-    // ✅ Store SAP session securely
+    // Extract raw cookie strings
+    const { B1SESSION, ROUTEID } = res.data.cookies
+
+    // Build SAP cookie header EXACTLY as SAP expects
+    const finalCookieString = `${B1SESSION}; ${ROUTEID}`
+
+    // Store SAP cookies
+    localStorage.setItem('sapCookies', finalCookieString)
+
     localStorage.setItem('sapSession', res.data.sessionId)
-    localStorage.setItem('sapCookies', JSON.stringify(res.data.cookies))
 
     $q.notify({
       type: 'positive',
       message: 'Login Successful',
     })
 
-    router.push('/') // ✅ protected page
+    router.push('/parser') // ✅ protected page
   } catch (err) {
     error.value = err.response?.data?.message || 'Connection failed'
   } finally {

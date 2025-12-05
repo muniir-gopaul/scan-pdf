@@ -22,12 +22,11 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     history: createHistory(process.env.VUE_ROUTER_BASE),
   })
 
-  // ✅ ✅ ✅ AUTH GUARD FOR SAP SESSION
   Router.beforeEach((to, from, next) => {
     const session = localStorage.getItem('sapSession')
 
     if (to.meta?.requiresAuth && !session) {
-      next('/login') // ✅ force login
+      next('/login')
     } else {
       next()
     }

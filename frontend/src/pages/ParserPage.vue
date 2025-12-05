@@ -203,7 +203,7 @@
                 bordered
               >
                 <template #body-cell-NotPostToSAP="props">
-                  <q-checkbox v-model="props.row.NotPostToSAP" color="red" />
+                  <q-checkbox :model-value="isRowBlocked(props.row)" color="red" readonly />
                 </template>
               </q-table>
 
@@ -272,9 +272,47 @@ const saving = ref(false)
 const selectedCustomerCode = ref(null)
 const customerOptions = ref([])
 
+function isRowBlocked(row) {
+  const qty = Number(row.Qty ?? 0)
+  const stock = Number(row.StockQty ?? 0)
+
+  return !row.ItemCode || stock <= 0 || stock < qty
+}
+
 function getRowClass(row) {
-  const notPost = row.NotPostToSAP === true || row.NotPostToSAP === 0
-  return notPost ? 'row-blocked' : ''
+  return isRowBlocked(row) ? 'row-blocked' : ''
+}
+function fixDate(input) {
+  if (!input) return null
+
+  const s = String(input).trim()
+
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+
+  // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+  let m = s.match(/^(\d{2})[./-](\d{2})[./-](\d{4})$/)
+  if (m) {
+    const dd = m[1]
+    const mm = m[2]
+    const yyyy = m[3]
+
+    return `${yyyy}-${mm}-${dd}`
+  }
+
+  // YYYY/MM/DD or YYYY.MM.DD or YYYY-MM-DD
+  m = s.match(/^(\d{4})[./-](\d{2})[./-](\d{2})$/)
+  if (m) {
+    const yyyy = m[1]
+    const mm = m[2]
+    const dd = m[3]
+
+    return `${yyyy}-${mm}-${dd}`
+  }
+
+  // Let JS try
+  const d = new Date(s)
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10)
 }
 
 /* ================== LOAD CUSTOMER LIST ================== */
@@ -306,6 +344,112 @@ const loadCustomerName = async (code) => {
     header.value.CustomerName = json.row?.CardName || 'Unknown'
   } catch {
     $q.notify({ type: 'negative', message: 'Customer lookup failed' })
+  }
+}
+
+/* ============================================================
+   BUILD SAP PAYLOAD (using enrichedRows and rules)
+============================================================ */
+function buildSapPayload() {
+  const sapLines = []
+
+  for (const row of enrichedRows.value) {
+    const qty = Number(row.Qty ?? 0)
+    const stock = Number(row.StockQty ?? 0)
+    const checked = row.NotPostToSAP === true //  checkbox logic
+
+    let postQty = 0
+
+    if (!checked) {
+      // CASE 1 → Checkbox UNCHECKED → Post full Qty
+      if (qty > 0 && row.ItemCode) {
+        postQty = qty
+      }
+    } else {
+      // CASE 2 → Checkbox CHECKED → Special SAP rules
+      if (!row.ItemCode) continue // Skip
+      if (stock <= 0) continue // Skip
+
+      if (stock > 0 && stock < qty) {
+        postQty = stock // POST PARTIAL
+      } else {
+        continue // Skip
+      }
+    }
+
+    // Add line if postQty > 0
+    if (postQty > 0) {
+      sapLines.push({
+        ItemCode: row.ItemCode,
+        Quantity: postQty,
+        TaxDate: header.value.OrderDate,
+        NumAtCard: header.value.PONumber,
+      })
+    }
+  }
+
+  return {
+    CardCode: header.value.CustomerCode,
+    DocDueDate: header.value.DeliveryDate,
+    DocDate: header.value.PostingDate,
+    DocumentLines: sapLines,
+  }
+}
+
+/* ============================================================
+   SEND PAYLOAD TO SAP
+============================================================ */
+async function sendToSap() {
+  const sapPayload = buildSapPayload()
+
+  console.log('Processing row for SAP:', sapPayload.DocumentLines)
+  console.log('🚀 SAP Payload:', sapPayload)
+
+  // ------------------------
+  // 1️⃣ MUST HAVE SAP COOKIES
+  // ------------------------
+  const sapCookies = localStorage.getItem('sapCookies')
+  if (!sapCookies) {
+    return $q.notify({
+      type: 'negative',
+      message: 'SAP session expired. Please login again.',
+    })
+  }
+
+  if (sapPayload.DocumentLines.length === 0) {
+    $q.notify({ type: 'warning', message: 'No valid lines to post to SAP.' })
+    return
+  }
+
+  try {
+    // ------------------------
+    // 2️⃣ SEND COOKIES TO BACKEND
+    // ------------------------
+    const sapCookies = localStorage.getItem('sapCookies')
+
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/sap/post`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'sap-cookies': sapCookies, // ← must be raw string
+      },
+      body: JSON.stringify(sapPayload),
+    })
+
+    const json = await res.json()
+
+    if (!json.success) throw new Error(json.message)
+
+    $q.notify({
+      type: 'positive',
+      message: 'Posted to SAP successfully!',
+    })
+  } catch (err) {
+    console.error('❌ SAP ERROR:', err)
+    $q.notify({
+      type: 'negative',
+      message: 'SAP Posting Failed: ' + err.message,
+    })
   }
 }
 
@@ -351,6 +495,7 @@ const saveDocument = () => {
           PONumber: header.value.PONumber,
           OrderDate: header.value.OrderDate,
           DeliveryDate: header.value.DeliveryDate,
+
           PostingDate: header.value.PostingDate,
           PostedBy: header.value.PostedBy || 'SYSTEM',
         },
@@ -358,7 +503,7 @@ const saveDocument = () => {
         // FULL DATA from enrichment (NOT UI table)
         lines: enrichedRows.value.map((row) => ({
           ItemCode: row.ItemCode,
-          Description: row.DBDescription || row.Description, // Option A
+          Description: row.DBDescription || row.Description,
           Barcode: row.Barcode,
 
           // Correct quantity
@@ -392,6 +537,16 @@ const saveDocument = () => {
       $q.notify({
         type: 'positive',
         message: `Saved successfully! DocEntry: ${json.docEntry}, DocNum: ${json.docNum}`,
+      })
+
+      // SAP POSTING PROMPT
+      $q.dialog({
+        title: 'Post to SAP?',
+        message: 'Do you want to send this document to SAP now?',
+        cancel: true,
+        ok: { label: 'Post', color: 'primary' },
+      }).onOk(() => {
+        sendToSap()
       })
     } catch (err) {
       saving.value = false
@@ -438,8 +593,17 @@ const extractPdf = async () => {
 
     if (!json.success) throw new Error(json.message)
 
-    Object.assign(header.value, json.header || {})
-    if (!header.value.PostingDate) header.value.PostingDate = null
+    const h = json.header || {}
+
+    header.value.CustomerCode = h.CustomerCode || ''
+    header.value.CustomerName = h.CustomerName || ''
+    header.value.PONumber = h.PONumber || ''
+
+    header.value.OrderDate = fixDate(h.OrderDate)
+    header.value.DeliveryDate = fixDate(h.DeliveryDate)
+    header.value.PostingDate = h.PostingDate || null
+
+    header.value.PostedBy = h.PostedBy || 'SYSTEM'
 
     rawColumns.value = json.columnsRaw || []
     rawRows.value = json.rawRows || []
@@ -484,7 +648,7 @@ function resetForm() {
 }
 </script>
 
-<style scoped>
+<style>
 .pdf-page {
   background: linear-gradient(120deg, #f5f7fa, #e4ecf7);
   min-height: 100vh;
@@ -523,6 +687,7 @@ function resetForm() {
   border-radius: 9px;
 }
 
+.row-blocked td,
 .row-blocked {
   background-color: #ffebee !important;
 }

@@ -1,6 +1,6 @@
 // server/index.js
-require("dotenv").config(); // ✅ Load .env
 
+require("dotenv").config(); // ✅ Load .env
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
@@ -22,9 +22,11 @@ const app = express();
 
 //  DYNAMIC CORS (DEV + IIS + PROD SAFE)
 const allowedOrigins = [
-  "http://localhost:9000", // Quasar dev
-  "http://localhost:8090", // IIS
+  "http://localhost:9000",
+  "http://localhost:8090",
   "http://127.0.0.1:8090",
+  "http://192.168.16.12:8090",
+  "http://192.168.16.12:9000",
 ];
 
 app.use(
@@ -38,7 +40,7 @@ app.use(
       return callback(new Error("CORS BLOCKED: " + origin), false);
     },
     methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "sap-cookies"],
     credentials: true,
   })
 );
@@ -47,10 +49,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ✅ API routes
+
 app.use("/api/customers", require("./api/routes/customers"));
 app.use("/api/extract", require("./api/routes/extract"));
 app.use("/api/pdf", require("./api/routes/pdf"));
 app.use("/api/auth", require("./api/routes/auth"));
+app.use("/api/sap", require("./api/routes/sapRoutes"));
 
 // ✅ Upload folder
 const upload = multer({
@@ -70,4 +74,7 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Express API running on port ${PORT}`));
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Express API running on http://0.0.0.0:${PORT}`);
+});
