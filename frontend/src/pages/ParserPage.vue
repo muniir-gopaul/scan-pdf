@@ -83,10 +83,11 @@
                       </q-icon>
                     </template>
                   </q-input>
-
+                </div>
+                <!-- Confirmed field set to YES by default -->
+                <div class="col-6">
                   <q-input outlined dense readonly v-model="header.confirmed" label="Confirmed" />
                 </div>
-
                 <!-- Posted By (NEW) -->
                 <div class="col-6">
                   <q-input outlined dense readonly v-model="header.PostedBy" label="Posted By" />
