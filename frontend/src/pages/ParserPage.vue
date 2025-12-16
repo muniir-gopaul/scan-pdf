@@ -285,6 +285,7 @@ function isRowBlocked(row) {
 function getRowClass(row) {
   return isRowBlocked(row) ? 'row-blocked' : ''
 }
+
 function fixDate(input) {
   if (!input) return null
 
