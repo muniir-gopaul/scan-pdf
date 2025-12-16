@@ -255,7 +255,7 @@ const header = ref({
   DeliveryDate: '',
   PostingDate: null,
   PostedBy: '',
-  confirmed: 'Yes',
+  // confirmed: 'Yes',
 })
 
 // RAW
@@ -397,7 +397,7 @@ function buildSapPayload() {
     DocDate: header.value.PostingDate,
     TaxDate: header.value.OrderDate,
     NumAtCard: header.value.PONumber,
-    Confirmed: header.value.confirmed,
+    // Confirmed: header.value.confirmed,
     DocumentLines: sapLines,
   }
 }
