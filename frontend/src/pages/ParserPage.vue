@@ -83,6 +83,8 @@
                       </q-icon>
                     </template>
                   </q-input>
+
+                  <q-input outlined dense readonly v-model="header.confirmed" label="Confirmed" />
                 </div>
 
                 <!-- Posted By (NEW) -->
@@ -251,7 +253,8 @@ const header = ref({
   OrderDate: '',
   DeliveryDate: '',
   PostingDate: null,
-  PostedBy: 'SYSTEM',
+  PostedBy: '',
+  confirmed: 'Yes',
 })
 
 // RAW
@@ -382,8 +385,6 @@ function buildSapPayload() {
       sapLines.push({
         ItemCode: row.ItemCode,
         Quantity: postQty,
-        TaxDate: header.value.OrderDate,
-        NumAtCard: header.value.PONumber,
       })
     }
   }
@@ -392,6 +393,9 @@ function buildSapPayload() {
     CardCode: header.value.CustomerCode,
     DocDueDate: header.value.DeliveryDate,
     DocDate: header.value.PostingDate,
+    TaxDate: header.value.OrderDate,
+    NumAtCard: header.value.PONumber,
+    Confirmed: header.value.confirmed,
     DocumentLines: sapLines,
   }
 }
@@ -595,8 +599,6 @@ const extractPdf = async () => {
 
     const h = json.header || {}
 
-    header.value.CustomerCode = h.CustomerCode || ''
-    header.value.CustomerName = h.CustomerName || ''
     header.value.PONumber = h.PONumber || ''
 
     header.value.OrderDate = fixDate(h.OrderDate)
@@ -636,7 +638,7 @@ function resetForm() {
     OrderDate: '',
     DeliveryDate: '',
     PostingDate: null,
-    PostedBy: 'SYSTEM',
+    PostedBy: '',
   }
 
   rawRows.value = []

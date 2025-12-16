@@ -3,7 +3,8 @@ const axios = require("axios");
 const https = require("https");
 require("dotenv").config();
 
-const SAP_BASE = process.env.SAP_URL || "https://192.168.16.16:50000/b1s/v1";
+// const SAP_BASE = process.env.SAP_URL || "https://192.168.16.16:50000/b1s/v1";
+const SAP_BASE = process.env.SAP_URL || "https://192.168.1.45:50000/b1s/v1";
 
 /**
  * Creates SAP SL HTTPS agent (for self-signed certificate)

@@ -68,6 +68,7 @@ async function onSubmit() {
     localStorage.setItem('sapCookies', finalCookieString)
 
     localStorage.setItem('sapSession', res.data.sessionId)
+    localStorage.setItem('username', username)
 
     $q.notify({
       type: 'positive',
