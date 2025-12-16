@@ -15,19 +15,19 @@ async function lookupItemByBarcode(barcode) {
   if (!barcode) return null;
 
   const query = `
-    SELECT 
-      LTRIM(RTRIM(CodeBars)) AS Barcode,
-      ItemCode,
-      ItemName,
-      AvailForSale
-    FROM VW_WA_ItemList
-    WHERE LTRIM(RTRIM(CodeBars)) = @barcode
-  `;
+  SELECT TOP 1
+    LTRIM(RTRIM(CodeBars)) AS Barcode,
+    ItemCode,
+    ItemName,
+    AvailForSale
+  FROM dbo.VW_WA_ItemList
+  WHERE LTRIM(RTRIM(CodeBars)) = @barcode
+`;
 
   try {
     const request = pool.request();
     request.input("barcode", sql.VarChar, barcode);
-
+    console.log(request);
     const result = await request.query(query);
     return result.recordset[0] || null;
   } catch (err) {
@@ -45,7 +45,7 @@ async function enrichMappedRows(mappedRows) {
   for (const row of mappedRows) {
     const cleanedBarcode = cleanBarcode(row.Barcode);
     const dbItem = await lookupItemByBarcode(cleanedBarcode);
-
+    console.log("Lookup for barcode", cleanedBarcode, "found:", dbItem);
     const enriched = { ...row };
 
     /* ------------------------------
