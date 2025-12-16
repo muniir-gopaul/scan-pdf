@@ -97,53 +97,27 @@ function parseDreampriceRows(parsedTabula) {
     });
   });
 
-  // Filter rows starting with a barcode
+  // Rows starting with barcode
   const itemRows = flat.filter((r) => /^[0-9]{7,14}$/.test(r[0]));
 
   const finalRows = itemRows.map((r, index) => {
     const barcode = r[0] || "";
     const description = r[1] || "";
-    const col3 = r[2] || "";
-    const col4 = r[3] || "";
 
-    let tax = "";
-    let qty = "";
-    let price = "";
-    let total = "";
+    // Combine remaining cells (ignore VAT text entirely)
+    const numericTokens = [r[2], r[3], r[4]]
+      .join(" ")
+      .split(/\s+/)
+      .filter((v) => /^[0-9.,]+$/.test(v));
 
-    const parts = col3.split(/\s+/).filter(Boolean);
-
-    if (parts.length >= 4) {
-      // Example: VAT 12 97.75 1,173.00
-      tax = parts[0];
-      qty = parts[1];
-      price = parts[2];
-      total = parts.slice(3).join(" ");
-    } else if (parts.length === 3 && col4) {
-      // VAT 24 30.40 + total in next cell
-      tax = parts[0];
-      qty = parts[1];
-      price = parts[2];
-      total = col4;
-    } else if (parts.length === 2 && col4) {
-      // ZERO 10 + total only
-      tax = parts[0];
-      qty = parts[1];
-      price = "";
-      total = col4;
-    } else {
-      // fallback
-      tax = parts[0] || "";
-      qty = parts[1] || "";
-      price = parts[2] || "";
-      total = parts[3] || col4;
-    }
+    const qty = numericTokens[0] || "";
+    const price = numericTokens[1] || "";
+    const total = numericTokens.slice(2).join(" ") || "";
 
     return {
       _id: index + 1,
       Barcode: barcode,
       Description: description,
-      Tax: tax,
       Qty: qty,
       PU_HT: price,
       Total_HT: total,
@@ -158,7 +132,6 @@ function parseDreampriceRows(parsedTabula) {
       field: "Description",
       align: "left",
     },
-    { name: "Tax", label: "Tax", field: "Tax", align: "left" },
     { name: "Qty", label: "Qty", field: "Qty", align: "right" },
     { name: "PU_HT", label: "PU (HT)", field: "PU_HT", align: "right" },
     {
