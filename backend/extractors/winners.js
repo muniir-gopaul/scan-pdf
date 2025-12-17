@@ -5,7 +5,7 @@ const path = require("path");
 const ExcelJS = require("exceljs");
 
 /* ------------------------------------------------------
-   0. Java check (same as dreamprice)
+   0. Java check
 ------------------------------------------------------ */
 function checkJava() {
   try {
@@ -14,7 +14,7 @@ function checkJava() {
       stdio: "ignore",
     });
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -42,30 +42,38 @@ function runTabula(pdfPath, jarPath) {
 /* ------------------------------------------------------
    Helpers
 ------------------------------------------------------ */
-function isArticleNo(v) {
-  if (!v) return false;
-  return /^[0-9]{4,7}$/.test(v.replace(/\D/g, ""));
-}
-
-function isEAN(v) {
-  if (!v) return false;
-  const d = v.replace(/\D/g, "");
-  return d.length >= 8 && d.length <= 14;
-}
-
 function sanitizeCell(v) {
   if (!v && v !== 0) return "";
   return String(v).replace(/\s+/g, " ").trim();
+}
+
+function isArticleNo(v) {
+  return /^[0-9]{4,7}$/.test(String(v || "").replace(/\D/g, ""));
+}
+
+function extractEAN(text) {
+  const m = String(text).match(/\b([0-9]{8,14})\b/);
+  return m ? m[1] : "";
+}
+
+function extractQty(v) {
+  const m = String(v).match(/([0-9]+)/);
+  return m ? m[1] : "";
 }
 
 function isPrice(v) {
   return /^[0-9]+([.,][0-9]+)?$/.test(v);
 }
 
-function extractQty(v) {
-  if (!v) return "";
-  const m = String(v).match(/([0-9]+)/);
-  return m ? m[1] : "";
+function isFooterRow(row) {
+  const s = row.join(" ").toLowerCase();
+  return (
+    s.includes("nb de lignes") ||
+    s.includes("nb colis") ||
+    s.includes("montant achat") ||
+    s.includes("poids brut") ||
+    s.includes("volume")
+  );
 }
 
 /* ------------------------------------------------------
@@ -84,17 +92,19 @@ function flattenTabula(parsed) {
 }
 
 /* ------------------------------------------------------
-   Merge continuation rows (unchanged)
+   Merge continuation rows (stop at footer)
 ------------------------------------------------------ */
 function mergeContinuations(flatRows) {
   const merged = [];
 
   for (const rowRaw of flatRows) {
+    if (isFooterRow(rowRaw)) break;
+
     const row = rowRaw.map(sanitizeCell);
     const col0 = row[0];
     const col1 = row[1];
 
-    const isNew = isArticleNo(col0) && isEAN(col1);
+    const isNew = isArticleNo(col0) && extractEAN(col1);
 
     if (isNew) {
       merged.push(row.slice());
@@ -113,37 +123,45 @@ function mergeContinuations(flatRows) {
 }
 
 /* ------------------------------------------------------
-   ✅ TABLE PARSER (ONLY REQUIRED COLUMNS)
-   Output: EAN, NbColis, PCB, Qty, Price
+   PARSE WINNERS ROWS → DREAMPRICE-STYLE OUTPUT
 ------------------------------------------------------ */
-function parseMergedRows(mergedRows) {
+function parseWinnersRows(mergedRows) {
   const rows = [];
 
   for (const r of mergedRows) {
     const cells = r.map(sanitizeCell).filter(Boolean);
+    if (!isArticleNo(cells[0])) continue;
 
-    const article = cells[0];
-    const ean = cells[1];
+    const joined = cells.join(" ");
+    const Barcode = extractEAN(joined);
+    if (!Barcode) continue;
 
-    if (!isArticleNo(article) || !isEAN(ean)) continue;
+    const eanIndex = cells.findIndex((c) => c.includes(Barcode));
+    const tail = cells.slice(eanIndex + 1);
 
-    const tail = cells.slice(2);
-
+    let DescriptionParts = [];
     let NbColis = "";
     let PCB = "";
     let Qty = "";
-    let Price = "";
+    let Total_HT = "";
 
-    // RIGHT → LEFT parsing (stable Winners grammar)
+    let foundVAT = false;
+
+    // RIGHT → LEFT parsing
     for (let i = tail.length - 1; i >= 0; i--) {
       const v = tail[i];
 
-      if (!Price && isPrice(v)) {
-        Price = v;
+      if (isPrice(v) && !foundVAT) {
+        foundVAT = true; // skip VAT
         continue;
       }
 
-      if (!Qty && /^[0-9]+/.test(v)) {
+      if (isPrice(v) && !Total_HT) {
+        Total_HT = v;
+        continue;
+      }
+
+      if (!Qty && /[0-9]+[A-Za-z]+/.test(v)) {
         Qty = extractQty(v);
         continue;
       }
@@ -157,14 +175,17 @@ function parseMergedRows(mergedRows) {
         NbColis = v;
         continue;
       }
+
+      DescriptionParts.unshift(v);
     }
 
     rows.push({
-      EAN: sanitizeCell(ean),
-      NbColis: sanitizeCell(NbColis),
-      PCB: sanitizeCell(PCB),
-      Qty: sanitizeCell(Qty),
-      Price: sanitizeCell(Price),
+      Barcode,
+      Description: sanitizeCell(DescriptionParts.join(" ")),
+      NbColis,
+      PCB,
+      Qty,
+      Total_HT,
     });
   }
 
@@ -172,7 +193,7 @@ function parseMergedRows(mergedRows) {
 }
 
 /* ------------------------------------------------------
-   Save outputs (JSON + XLSX)
+   Save outputs
 ------------------------------------------------------ */
 async function saveOutputs(rows, header, outDir) {
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
@@ -184,7 +205,7 @@ async function saveOutputs(rows, header, outDir) {
   fs.writeFileSync(jsonPath, JSON.stringify({ header, rows }, null, 2));
 
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Winners PO");
+  const sheet = workbook.addWorksheet("Parsed");
 
   sheet.addRow(["CustomerName", header.CustomerName || ""]);
   sheet.addRow(["PONumber", header.PONumber || ""]);
@@ -192,12 +213,17 @@ async function saveOutputs(rows, header, outDir) {
   sheet.addRow(["DeliveryDate", header.DeliveryDate || ""]);
   sheet.addRow([]);
 
-  const headers = ["EAN", "NbColis", "PCB", "Qty", "Price"];
+  const headers = [
+    "Barcode",
+    "Description",
+    "NbColis",
+    "PCB",
+    "Qty",
+    "Total_HT",
+  ];
   sheet.addRow(headers);
 
-  rows.forEach((r) => {
-    sheet.addRow(headers.map((k) => r[k] || ""));
-  });
+  rows.forEach((r) => sheet.addRow(headers.map((k) => r[k] || "")));
 
   await workbook.xlsx.writeFile(xlsxPath);
   return { jsonPath, xlsxPath };
@@ -257,20 +283,21 @@ async function extractWinners(pdfPath, opts = {}) {
   const flat = flattenTabula(parsed);
   const merged = mergeContinuations(flat);
   const header = extractHeaderFromFlat(flat);
-  const rows = parseMergedRows(merged);
+  const rows = parseWinnersRows(merged);
 
   const outDir = opts.saveTo || path.join(__dirname, "..", "output");
   const { jsonPath, xlsxPath } = await saveOutputs(rows, header, outDir);
 
   const columns = [
-    { name: "EAN", label: "EAN", field: "EAN" },
+    { name: "Barcode", label: "Barcode", field: "Barcode" },
+    { name: "Description", label: "Description", field: "Description" },
     { name: "NbColis", label: "Nb Colis", field: "NbColis" },
     { name: "PCB", label: "PCB", field: "PCB" },
     { name: "Qty", label: "Qty", field: "Qty" },
-    { name: "Price", label: "Price", field: "Price" },
+    { name: "Total_HT", label: "Total (HT)", field: "Total_HT" },
   ];
 
-  return { header, rows, columns, jsonPath, xlsxPath };
+  return { header, columns, rows, jsonPath, xlsxPath };
 }
 
 module.exports = { extractWinners };
