@@ -234,7 +234,6 @@ import { ref, onMounted } from 'vue'
 import MainContainer from 'src/components/MainContainer.vue'
 import { useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
-import { symRoundedAlternateEmail } from '@quasar/extras/material-symbols-rounded'
 
 const $q = useQuasar()
 
@@ -286,7 +285,7 @@ function isRowBlocked(row) {
   return !row.ItemCode || stock <= 0 || stock < qty
 }
 
-function getRowClass(row) {
+function getRowClass({ row }) {
   return isRowBlocked(row) ? 'row-blocked' : ''
 }
 

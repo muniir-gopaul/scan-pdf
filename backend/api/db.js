@@ -20,7 +20,11 @@ const config = {
   connectionTimeout: 15000,
   requestTimeout: 15000,
 };
-
+console.log("DB CONFIG CHECK", {
+  server: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+});
 const pool = new sql.ConnectionPool(config);
 const poolConnect = pool.connect();
 
