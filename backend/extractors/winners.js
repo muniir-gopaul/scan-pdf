@@ -26,13 +26,12 @@ function runTabula(pdfPath, jarPath) {
   return new Promise((resolve, reject) => {
     const cmd = `java -jar "${jarPath}" --stream -p all -f JSON "${pdfPath}"`;
 
-    exec(cmd, { maxBuffer: 1024 * 1024 * 40 }, (err, stdout, stderr) => {
+    exec(cmd, { maxBuffer: 1024 * 1024 * 40 }, (err, stdout) => {
       if (err) return reject(err);
       if (!stdout) return reject(new Error("Tabula returned no output"));
 
       try {
-        const parsed = JSON.parse(stdout);
-        resolve(parsed);
+        resolve(JSON.parse(stdout));
       } catch (e) {
         reject(new Error("Failed to parse Tabula JSON: " + e.message));
       }
@@ -41,7 +40,7 @@ function runTabula(pdfPath, jarPath) {
 }
 
 /* ------------------------------------------------------
-   Helpers: validators
+   Helpers
 ------------------------------------------------------ */
 function isArticleNo(v) {
   if (!v) return false;
@@ -50,24 +49,33 @@ function isArticleNo(v) {
 
 function isEAN(v) {
   if (!v) return false;
-  const digits = v.replace(/\D/g, "");
-  return digits.length >= 8 && digits.length <= 14;
+  const d = v.replace(/\D/g, "");
+  return d.length >= 8 && d.length <= 14;
 }
 
-function sanitizeCell(c) {
-  if (!c && c !== 0) return "";
-  return String(c).replace(/\s+/g, " ").trim();
+function sanitizeCell(v) {
+  if (!v && v !== 0) return "";
+  return String(v).replace(/\s+/g, " ").trim();
+}
+
+function isPrice(v) {
+  return /^[0-9]+([.,][0-9]+)?$/.test(v);
+}
+
+function extractQty(v) {
+  if (!v) return "";
+  const m = String(v).match(/([0-9]+)/);
+  return m ? m[1] : "";
 }
 
 /* ------------------------------------------------------
-   Flatten Tabula JSON pages -> rows of plain cell texts
+   Flatten Tabula pages
 ------------------------------------------------------ */
 function flattenTabula(parsed) {
   const flat = [];
   (parsed || []).forEach((page) => {
     (page.data || []).forEach((row) => {
       const cells = row.map((c) => (c && c.text ? sanitizeCell(c.text) : ""));
-      // remove trailing empty columns
       while (cells.length && cells[cells.length - 1] === "") cells.pop();
       flat.push(cells);
     });
@@ -76,43 +84,27 @@ function flattenTabula(parsed) {
 }
 
 /* ------------------------------------------------------
-   Merge continuation rows
-   - If a row doesn't start with ArticleNo+EAN, treat as continuation
-   - Append its content to previous row description
+   Merge continuation rows (unchanged)
 ------------------------------------------------------ */
 function mergeContinuations(flatRows) {
   const merged = [];
 
-  for (let i = 0; i < flatRows.length; i++) {
-    const row = flatRows[i].map((c) => sanitizeCell(c));
-
+  for (const rowRaw of flatRows) {
+    const row = rowRaw.map(sanitizeCell);
     const col0 = row[0];
     const col1 = row[1];
 
-    const looksLikeNewItem = isArticleNo(col0) && isEAN(col1);
+    const isNew = isArticleNo(col0) && isEAN(col1);
 
-    if (looksLikeNewItem) {
+    if (isNew) {
       merged.push(row.slice());
       continue;
     }
 
-    // 🔁 CONTINUATION LINE (wrapped description, packaging, etc.)
-    if (merged.length > 0) {
+    if (merged.length) {
       const prev = merged[merged.length - 1];
-
-      // merge all meaningful text into description slot (col index 2)
-      const continuationText = row.filter((x) => x && !isEAN(x)).join(" ");
-
-      if (continuationText) {
-        while (prev.length < 3) prev.push("");
-        prev[2] = sanitizeCell(`${prev[2] || ""} ${continuationText}`);
-      }
-
-      // also merge any numeric tail that may appear on continuation row
-      for (let k = 3; k < row.length; k++) {
-        if (row[k] && !prev[k]) {
-          prev[k] = row[k];
-        }
+      for (let i = 2; i < row.length; i++) {
+        if (row[i] && !prev[i]) prev[i] = row[i];
       }
     }
   }
@@ -121,78 +113,58 @@ function mergeContinuations(flatRows) {
 }
 
 /* ------------------------------------------------------
-   Parse merged rows into structured objects
-   Strategy:
-   - Expect columns: [ArticleNo, EAN, Description, NbColis, PCB, Qty, Price, Promo ...]
-   - Because Tabula sometimes collapses last columns, we take 'tail' approach:
-     - article = cell[0]
-     - ean = cell[1]
-     - tail = cells.slice(2)
-     - if tail.length >= 6 => last 6 map to [NbColis,PCB,Qty,Price,Promo,Tax?]
-     - if tail.length >= 5 => last 5 map to [NbColis,PCB,Qty,Price,Promo]
-     - if tail.length == 4 => [NbColis,PCB,Qty,Price]
-     - else fallback: try to parse numbers at end of description string
+   ✅ TABLE PARSER (ONLY REQUIRED COLUMNS)
+   Output: EAN, NbColis, PCB, Qty, Price
 ------------------------------------------------------ */
 function parseMergedRows(mergedRows) {
   const rows = [];
 
   for (const r of mergedRows) {
-    const cells = r.map((c) => sanitizeCell(c));
+    const cells = r.map(sanitizeCell).filter(Boolean);
 
-    const article = sanitizeCell(cells[0] || "");
-    const ean = sanitizeCell(cells[1] || "");
+    const article = cells[0];
+    const ean = cells[1];
 
     if (!isArticleNo(article) || !isEAN(ean)) continue;
 
-    const tail = cells.slice(2).filter(Boolean);
+    const tail = cells.slice(2);
 
-    let Description = "";
     let NbColis = "";
     let PCB = "";
     let Qty = "";
     let Price = "";
-    let Promo = "";
-    let Tax = "";
 
-    // ✅ SMART RIGHT-ALIGN MAPPING
-    const numeric = tail.filter((v) => /^[0-9.,]+$/.test(v));
+    // RIGHT → LEFT parsing (stable Winners grammar)
+    for (let i = tail.length - 1; i >= 0; i--) {
+      const v = tail[i];
 
-    if (numeric.length >= 4) {
-      Price = numeric[numeric.length - 2];
-      Qty = numeric[numeric.length - 3];
-      PCB = numeric[numeric.length - 4];
-      NbColis = numeric[numeric.length - 5] || "";
-    } else if (numeric.length >= 3) {
-      Price = numeric[numeric.length - 1];
-      Qty = numeric[numeric.length - 2];
-      PCB = numeric[numeric.length - 3];
+      if (!Price && isPrice(v)) {
+        Price = v;
+        continue;
+      }
+
+      if (!Qty && /^[0-9]+/.test(v)) {
+        Qty = extractQty(v);
+        continue;
+      }
+
+      if (!PCB && /^[0-9]+$/.test(v)) {
+        PCB = v;
+        continue;
+      }
+
+      if (!NbColis && /^[0-9]+$/.test(v)) {
+        NbColis = v;
+        continue;
+      }
     }
 
-    // ✅ DESCRIPTION = EVERYTHING ELSE
-    Description = tail
-      .filter((v) => !numeric.includes(v))
-      .join(" ")
-      .trim();
-
-    // ✅ FINAL CLEAN
-    Description = sanitizeCell(Description);
-    NbColis = sanitizeCell(NbColis);
-    PCB = sanitizeCell(PCB);
-    Qty = sanitizeCell(Qty);
-    Price = sanitizeCell(Price);
-    Promo = sanitizeCell(Promo);
-    Tax = sanitizeCell(Tax);
-
     rows.push({
-      ArticleNo: article,
-      EAN: ean,
-      Description,
-      NbColis,
-      PCB,
-      Qty,
-      Price,
-      Promo,
-      Tax,
+      EAN: sanitizeCell(ean),
+      NbColis: sanitizeCell(NbColis),
+      PCB: sanitizeCell(PCB),
+      Qty: sanitizeCell(Qty),
+      Price: sanitizeCell(Price),
     });
   }
 
@@ -220,17 +192,7 @@ async function saveOutputs(rows, header, outDir) {
   sheet.addRow(["DeliveryDate", header.DeliveryDate || ""]);
   sheet.addRow([]);
 
-  const headers = [
-    "ArticleNo",
-    "EAN",
-    "Description",
-    "NbColis",
-    "PCB",
-    "Qty",
-    "Price",
-    "Promo",
-    "Tax",
-  ];
+  const headers = ["EAN", "NbColis", "PCB", "Qty", "Price"];
   sheet.addRow(headers);
 
   rows.forEach((r) => {
@@ -238,15 +200,13 @@ async function saveOutputs(rows, header, outDir) {
   });
 
   await workbook.xlsx.writeFile(xlsxPath);
-
   return { jsonPath, xlsxPath };
 }
 
 /* ------------------------------------------------------
-   Extract header from flattened text (simple)
+   Header extractor (UNCHANGED)
 ------------------------------------------------------ */
 function extractHeaderFromFlat(flatRows) {
-  // Build a long text for regex matching
   const big = flatRows.map((r) => r.join(" ")).join(" ");
   const header = {
     Branch:
@@ -276,7 +236,6 @@ function extractHeaderFromFlat(flatRows) {
       big.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/)?.[0] || "",
   };
 
-  // trim
   Object.keys(header).forEach((k) => {
     header[k] = header[k] ? header[k].trim() : "";
   });
@@ -290,53 +249,28 @@ function extractHeaderFromFlat(flatRows) {
 async function extractWinners(pdfPath, opts = {}) {
   const jarPath = path.join(__dirname, "..", "tabula", "tabula.jar");
 
-  if (!checkJava()) {
-    throw new Error("Java is not installed or not in PATH.");
-  }
-
-  if (!fs.existsSync(jarPath)) {
+  if (!checkJava()) throw new Error("Java is not installed or not in PATH.");
+  if (!fs.existsSync(jarPath))
     throw new Error(`Tabula JAR not found at: ${jarPath}`);
-  }
 
-  // Run tabula
   const parsed = await runTabula(pdfPath, jarPath);
-
-  // Flatten pages to rows of cell text
   const flat = flattenTabula(parsed);
-
-  // Merge continuation lines where description wraps to next PDF line
   const merged = mergeContinuations(flat);
-
-  // Extract header from flattened rows
   const header = extractHeaderFromFlat(flat);
-
-  // Parse merged rows to structured fields
   const rows = parseMergedRows(merged);
 
-  // Persist outputs
   const outDir = opts.saveTo || path.join(__dirname, "..", "output");
   const { jsonPath, xlsxPath } = await saveOutputs(rows, header, outDir);
 
-  // Columns for frontend (Quasar)
   const columns = [
-    { name: "ArticleNo", label: "Article No", field: "ArticleNo" },
     { name: "EAN", label: "EAN", field: "EAN" },
-    { name: "Description", label: "Description", field: "Description" },
     { name: "NbColis", label: "Nb Colis", field: "NbColis" },
     { name: "PCB", label: "PCB", field: "PCB" },
     { name: "Qty", label: "Qty", field: "Qty" },
     { name: "Price", label: "Price", field: "Price" },
-    { name: "Promo", label: "Promo/Tax", field: "Promo" },
-    { name: "Tax", label: "Tax", field: "Tax" },
   ];
 
-  return {
-    header,
-    rows,
-    columns,
-    jsonPath,
-    xlsxPath,
-  };
+  return { header, rows, columns, jsonPath, xlsxPath };
 }
 
 module.exports = { extractWinners };
