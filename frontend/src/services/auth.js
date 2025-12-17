@@ -1,5 +1,4 @@
 import { Notify } from 'quasar'
-import router from 'src/router'
 
 export function isAuthenticated() {
   return !!localStorage.getItem('sapCookies')
@@ -25,5 +24,5 @@ export function logout(reason = 'manual') {
   }
 
   // 🔁 HARD redirect (prevents back navigation)
-  router.replace('/login')
+  window.location.replace('/login')
 }

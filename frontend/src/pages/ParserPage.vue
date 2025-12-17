@@ -234,7 +234,7 @@ import { ref, onMounted } from 'vue'
 import MainContainer from 'src/components/MainContainer.vue'
 import { useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
-
+import { extractApiError } from 'src/utils/apiError'
 const $q = useQuasar()
 
 /* ================== STATE ================== */
@@ -384,12 +384,9 @@ async function sendToSap() {
 
   try {
     const res = await api.post('/api/sap/post', sapPayload)
+    // 🔥 MUST THROW ON BUSINESS FAILURE
     if (!res.data.success) {
-      // 🔥 Extract SAP error message safely
-      const sapErrorMsg =
-        res.data?.error?.message?.value || res.data?.message || 'SAP posting failed'
-
-      throw new Error(sapErrorMsg)
+      throw { response: { data: res.data } }
     }
 
     $q.notify({
@@ -399,16 +396,12 @@ async function sendToSap() {
   } catch (err) {
     console.error('❌ SAP ERROR:', err)
 
-    const message =
-      err.response?.data?.error?.message?.value || // SAP error
-      err.response?.data?.message || // backend error
-      err.message || // thrown error
-      'SAP posting failed'
+    const message = extractApiError(err, err?.response?.data)
 
     $q.notify({
       type: 'negative',
       message,
-      timeout: 6000,
+      timeout: 7000,
       multiLine: true,
     })
   }
@@ -517,7 +510,6 @@ const extractPdf = async () => {
     header.value.OrderDate = fixDate(h.OrderDate)
     header.value.DeliveryDate = fixDate(h.DeliveryDate)
     header.value.PostingDate = h.PostingDate || null
-    header.value.PostedBy = h.PostedBy || 'SYSTEM'
 
     rawColumns.value = json.columnsRaw || []
     rawRows.value = json.rawRows || []
