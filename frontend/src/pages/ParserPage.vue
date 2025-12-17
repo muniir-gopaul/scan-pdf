@@ -205,7 +205,7 @@
                 flat
                 bordered
               >
-                <template #body-cell-NotPostToSAP="props">
+                <template #body-cell-Status="props">
                   <q-checkbox :model-value="isRowBlocked(props.row)" color="red" readonly />
                 </template>
               </q-table>
@@ -344,7 +344,7 @@ function buildSapPayload() {
   for (const row of enrichedRows.value) {
     const qty = Number(row.Qty ?? 0)
     const stock = Number(row.StockQty ?? 0)
-    const checked = row.NotPostToSAP === true
+    const checked = row.Status === true
 
     let postQty = 0
 
