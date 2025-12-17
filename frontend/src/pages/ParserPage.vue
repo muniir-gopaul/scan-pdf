@@ -384,11 +384,33 @@ async function sendToSap() {
 
   try {
     const res = await api.post('/api/sap/post', sapPayload)
-    if (!res.data.success) throw new Error(res.data.message)
+    if (!res.data.success) {
+      // 🔥 Extract SAP error message safely
+      const sapErrorMsg =
+        res.data?.error?.message?.value || res.data?.message || 'SAP posting failed'
 
-    $q.notify({ type: 'positive', message: 'Posted to SAP successfully!' })
+      throw new Error(sapErrorMsg)
+    }
+
+    $q.notify({
+      type: 'positive',
+      message: 'Posted to SAP successfully!',
+    })
   } catch (err) {
-    $q.notify({ type: 'negative', message: 'SAP Posting Failed: ' + err.message })
+    console.error('❌ SAP ERROR:', err)
+
+    const message =
+      err.response?.data?.error?.message?.value || // SAP error
+      err.response?.data?.message || // backend error
+      err.message || // thrown error
+      'SAP posting failed'
+
+    $q.notify({
+      type: 'negative',
+      message,
+      timeout: 6000,
+      multiLine: true,
+    })
   }
 }
 
