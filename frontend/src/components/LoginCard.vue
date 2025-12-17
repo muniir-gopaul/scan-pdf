@@ -28,9 +28,9 @@
 
 <script setup>
 import { ref } from 'vue'
-import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { api } from 'src/boot/axios' // ✅ USE CENTRAL API
 
 const companyDB = ref('')
 const username = ref('')
@@ -46,7 +46,7 @@ async function onSubmit() {
   loading.value = true
 
   try {
-    const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+    const res = await api.post('/api/auth/login', {
       CompanyDB: companyDB.value,
       UserName: username.value,
       Password: password.value,
@@ -54,7 +54,6 @@ async function onSubmit() {
 
     if (!res.data.success) {
       error.value = res.data.message
-      loading.value = false
       return
     }
 
@@ -64,11 +63,10 @@ async function onSubmit() {
     // Build SAP cookie header EXACTLY as SAP expects
     const finalCookieString = `${B1SESSION}; ${ROUTEID}`
 
-    // Store SAP cookies
+    // Store SAP cookies (auth source of truth)
     localStorage.setItem('sapCookies', finalCookieString)
-
     localStorage.setItem('sapSession', res.data.sessionId)
-    localStorage.setItem('username', username)
+    localStorage.setItem('username', username.value)
 
     $q.notify({
       type: 'positive',
@@ -77,7 +75,7 @@ async function onSubmit() {
 
     router.push('/parser') // ✅ protected page
   } catch (err) {
-    error.value = err.response?.data?.message || 'Connection failed'
+    error.value = err.response?.data?.message || 'Unable to connect to server'
   } finally {
     loading.value = false
   }

@@ -233,6 +233,8 @@
 import { ref, onMounted } from 'vue'
 import MainContainer from 'src/components/MainContainer.vue'
 import { useQuasar } from 'quasar'
+import { api } from 'src/boot/axios'
+import { symRoundedAlternateEmail } from '@quasar/extras/material-symbols-rounded'
 
 const $q = useQuasar()
 
@@ -246,7 +248,7 @@ const templateOptions = [
 
 const pdfFile = ref(null)
 
-/* ✅ HEADER IS NEVER NULL (CRASH FIX) */
+/* ✅ HEADER IS NEVER NULL */
 const header = ref({
   CustomerCode: '',
   CustomerName: '',
@@ -266,7 +268,7 @@ const rawRows = ref([])
 const mappedColumns = ref([])
 const mappedRows = ref([])
 
-// ENRICHED ROWS (FULL DATA USED FOR SAVING)
+// ENRICHED
 const enrichedRows = ref([])
 
 const loading = ref(false)
@@ -276,10 +278,11 @@ const saving = ref(false)
 const selectedCustomerCode = ref(null)
 const customerOptions = ref([])
 
+/* ================== HELPERS ================== */
+
 function isRowBlocked(row) {
   const qty = Number(row.Qty ?? 0)
   const stock = Number(row.StockQty ?? 0)
-
   return !row.ItemCode || stock <= 0 || stock < qty
 }
 
@@ -289,33 +292,16 @@ function getRowClass(row) {
 
 function fixDate(input) {
   if (!input) return null
-
   const s = String(input).trim()
 
-  // Already ISO
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
 
-  // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
   let m = s.match(/^(\d{2})[./-](\d{2})[./-](\d{4})$/)
-  if (m) {
-    const dd = m[1]
-    const mm = m[2]
-    const yyyy = m[3]
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`
 
-    return `${yyyy}-${mm}-${dd}`
-  }
-
-  // YYYY/MM/DD or YYYY.MM.DD or YYYY-MM-DD
   m = s.match(/^(\d{4})[./-](\d{2})[./-](\d{2})$/)
-  if (m) {
-    const yyyy = m[1]
-    const mm = m[2]
-    const dd = m[3]
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`
 
-    return `${yyyy}-${mm}-${dd}`
-  }
-
-  // Let JS try
   const d = new Date(s)
   return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10)
 }
@@ -323,12 +309,13 @@ function fixDate(input) {
 /* ================== LOAD CUSTOMER LIST ================== */
 
 onMounted(async () => {
+  // set posted by with username.value from local storage
+  header.value.PostedBy = localStorage.getItem('username') || 'SYSTEM'
+
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/customers/codes`)
-    const json = await res.json()
-    console.log(json)
-    customerOptions.value = json.rows.map((c) => ({
-      label: `${c.CardCode} - ${c.CardName}`, // Combine code and name
+    const res = await api.get('/api/customers/codes')
+    customerOptions.value = res.data.rows.map((c) => ({
+      label: `${c.CardCode} - ${c.CardName}`,
       value: c.CardCode,
     }))
   } catch {
@@ -342,47 +329,32 @@ const loadCustomerName = async (code) => {
   if (!code) return
 
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/customers/${code}`)
-    const json = await res.json()
-
+    const res = await api.get(`/api/customers/${code}`)
     header.value.CustomerCode = code
-    header.value.CustomerName = json.row?.CardName || 'Unknown'
+    header.value.CustomerName = res.data.row?.CardName || 'Unknown'
   } catch {
     $q.notify({ type: 'negative', message: 'Customer lookup failed' })
   }
 }
 
-/* ============================================================
-   BUILD SAP PAYLOAD (using enrichedRows and rules)
-============================================================ */
+/* ================== BUILD SAP PAYLOAD ================== */
+
 function buildSapPayload() {
   const sapLines = []
 
   for (const row of enrichedRows.value) {
     const qty = Number(row.Qty ?? 0)
     const stock = Number(row.StockQty ?? 0)
-    const checked = row.NotPostToSAP === true //  checkbox logic
+    const checked = row.NotPostToSAP === true
 
     let postQty = 0
 
-    if (!checked) {
-      // CASE 1 → Checkbox UNCHECKED → Post full Qty
-      if (qty > 0 && row.ItemCode) {
-        postQty = qty
-      }
-    } else {
-      // CASE 2 → Checkbox CHECKED → Special SAP rules
-      if (!row.ItemCode) continue // Skip
-      if (stock <= 0) continue // Skip
-
-      if (stock > 0 && stock < qty) {
-        postQty = stock // POST PARTIAL
-      } else {
-        continue // Skip
-      }
+    if (!checked && qty > 0 && row.ItemCode) {
+      postQty = qty
+    } else if (checked && row.ItemCode && stock > 0 && stock < qty) {
+      postQty = stock
     }
 
-    // Add line if postQty > 0
     if (postQty > 0) {
       sapLines.push({
         ItemCode: row.ItemCode,
@@ -402,98 +374,47 @@ function buildSapPayload() {
   }
 }
 
-/* ============================================================
-   SEND PAYLOAD TO SAP
-============================================================ */
+/* ================== SEND TO SAP ================== */
+
 async function sendToSap() {
   const sapPayload = buildSapPayload()
 
-  console.log('Processing row for SAP:', sapPayload.DocumentLines)
-  console.log('🚀 SAP Payload:', sapPayload)
-
-  // ------------------------
-  // 1️⃣ MUST HAVE SAP COOKIES
-  // ------------------------
-  const sapCookies = localStorage.getItem('sapCookies')
-  if (!sapCookies) {
-    return $q.notify({
-      type: 'negative',
-      message: 'SAP session expired. Please login again.',
-    })
-  }
-
   if (sapPayload.DocumentLines.length === 0) {
-    $q.notify({ type: 'warning', message: 'No valid lines to post to SAP.' })
-    return
+    return $q.notify({ type: 'warning', message: 'No valid lines to post to SAP.' })
   }
 
   try {
-    // ------------------------
-    // 2️⃣ SEND COOKIES TO BACKEND
-    // ------------------------
-    const sapCookies = localStorage.getItem('sapCookies')
+    const res = await api.post('/api/sap/post', sapPayload)
+    if (!res.data.success) throw new Error(res.data.message)
 
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/sap/post`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'sap-cookies': sapCookies, // ← must be raw string
-      },
-      body: JSON.stringify(sapPayload),
-    })
-
-    const json = await res.json()
-
-    if (!json.success) throw new Error(json.message)
-
-    $q.notify({
-      type: 'positive',
-      message: 'Posted to SAP successfully!',
-    })
+    $q.notify({ type: 'positive', message: 'Posted to SAP successfully!' })
   } catch (err) {
-    console.error('❌ SAP ERROR:', err)
-    $q.notify({
-      type: 'negative',
-      message: 'SAP Posting Failed: ' + err.message,
-    })
+    $q.notify({ type: 'negative', message: 'SAP Posting Failed: ' + err.message })
   }
 }
 
 /* ================== SAVE DOCUMENT ================== */
+
 const saveDocument = () => {
   $q.dialog({
     title: 'Confirm Save',
     message: 'Are you sure you want to save this document and all line items?',
     cancel: true,
-    ok: {
-      label: 'Save',
-      color: 'primary',
-    },
+    ok: { label: 'Save', color: 'primary' },
   }).onOk(async () => {
     try {
       saving.value = true
 
-      // Validate header
       if (!header.value.CustomerCode) {
         saving.value = false
-        return $q.notify({
-          type: 'negative',
-          message: 'Customer Code is mandatory',
-        })
+        return $q.notify({ type: 'negative', message: 'Customer Code is mandatory' })
       }
 
-      // Validate lines
-      if (!enrichedRows.value || enrichedRows.value.length === 0) {
+      if (!enrichedRows.value.length) {
         saving.value = false
-        return $q.notify({
-          type: 'negative',
-          message: 'No lines to save',
-        })
+        return $q.notify({ type: 'negative', message: 'No lines to save' })
       }
 
-      console.log('🔥 Sending enriched rows:', enrichedRows.value[0])
-
-      // Build payload
       const payload = {
         header: {
           CustomerCode: header.value.CustomerCode,
@@ -501,66 +422,38 @@ const saveDocument = () => {
           PONumber: header.value.PONumber,
           OrderDate: header.value.OrderDate,
           DeliveryDate: header.value.DeliveryDate,
-
           PostingDate: header.value.PostingDate,
           PostedBy: header.value.PostedBy || 'SYSTEM',
         },
-
-        // FULL DATA from enrichment (NOT UI table)
         lines: enrichedRows.value.map((row) => ({
           ItemCode: row.ItemCode,
           Description: row.DBDescription || row.Description,
           Barcode: row.Barcode,
-
-          // Correct quantity
           Quantity: row.Qty || 0,
-
-          // UNIT PRICE MUST BE BLANK
           UnitPrice: null,
-
-          // PU(HT) goes into POPRICE
           POPrice: row.UnitPrice || 0,
-
-          // Stock
           StockQty: row.StockQty || 0,
         })),
       }
 
-      console.log('📦 Payload to backend:', payload)
-
-      // Send to API
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/pdf/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      const json = await res.json()
-      saving.value = false
-
-      if (!json.success) throw new Error(json.message)
+      const res = await api.post('/api/pdf/save', payload)
+      if (!res.data.success) throw new Error(res.data.message)
 
       $q.notify({
         type: 'positive',
-        message: `Saved successfully! DocEntry: ${json.docEntry}, DocNum: ${json.docNum}`,
+        message: `Saved successfully! DocEntry: ${res.data.docEntry}, DocNum: ${res.data.docNum}`,
       })
 
-      // SAP POSTING PROMPT
       $q.dialog({
         title: 'Post to SAP?',
         message: 'Do you want to send this document to SAP now?',
         cancel: true,
         ok: { label: 'Post', color: 'primary' },
-      }).onOk(() => {
-        sendToSap()
-      })
+      }).onOk(sendToSap)
     } catch (err) {
+      $q.notify({ type: 'negative', message: 'Save failed: ' + err.message })
+    } finally {
       saving.value = false
-      console.error('❌ SAVE ERROR:', err)
-      $q.notify({
-        type: 'negative',
-        message: 'Save failed: ' + err.message,
-      })
     }
   })
 }
@@ -590,34 +483,26 @@ const extractPdf = async () => {
     form.append('pdf', pdfFile.value)
     form.append('template', templateName.value)
 
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/extract`, {
-      method: 'POST',
-      body: form,
+    const res = await api.post('/api/extract', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     })
-    const json = await res.json()
-    console.log(json)
 
+    const json = res.data
     if (!json.success) throw new Error(json.message)
 
     const h = json.header || {}
 
     header.value.PONumber = h.PONumber || ''
-
     header.value.OrderDate = fixDate(h.OrderDate)
     header.value.DeliveryDate = fixDate(h.DeliveryDate)
     header.value.PostingDate = h.PostingDate || null
-
     header.value.PostedBy = h.PostedBy || 'SYSTEM'
 
     rawColumns.value = json.columnsRaw || []
     rawRows.value = json.rawRows || []
-
     mappedColumns.value = json.columnsMapped || []
     mappedRows.value = json.mappedRows || []
-
-    // STORE FULL ENRICHED ROWS (for saving)
     enrichedRows.value = json.enrichedRows || json.mappedRows || []
-    console.log('🔥 enrichedRows received:', enrichedRows.value.length, enrichedRows.value[0])
 
     $q.notify({ type: 'positive', message: 'PDF extracted successfully!' })
   } catch (err) {
@@ -645,7 +530,6 @@ function resetForm() {
 
   rawRows.value = []
   rawColumns.value = []
-
   mappedRows.value = []
   mappedColumns.value = []
   enrichedRows.value = []

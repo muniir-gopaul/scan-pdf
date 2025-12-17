@@ -1,6 +1,13 @@
 // server/index.js
+require("dotenv").config({
+  path: require("path").resolve(__dirname, ".env"),
+});
 
-require("dotenv").config(); // ✅ Load .env
+console.log("🔐 ENV CHECK AT STARTUP", {
+  DB_HOST: process.env.DB_HOST,
+  DB_NAME: process.env.DB_NAME,
+});
+// ✅ Load .env
 const express = require("express");
 const multer = require("multer");
 const path = require("path");

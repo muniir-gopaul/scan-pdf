@@ -104,9 +104,9 @@ router.post("/", upload.single("pdf"), async (req, res) => {
           align: "center",
         },
         {
-          name: "NotPostToSAP",
-          label: "NotPostToSAP",
-          field: "NotPostToSAP",
+          name: "Status",
+          label: "Status",
+          field: "Status",
           align: "center",
         },
       ],
