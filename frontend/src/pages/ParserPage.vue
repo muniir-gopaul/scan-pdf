@@ -234,7 +234,7 @@ import { ref, onMounted } from 'vue'
 import MainContainer from 'src/components/MainContainer.vue'
 import { useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
-import { extractApiError } from 'src/utils/apiError'
+
 const $q = useQuasar()
 
 /* ================== STATE ================== */
@@ -396,7 +396,7 @@ async function sendToSap() {
   } catch (err) {
     console.error('❌ SAP ERROR:', err)
 
-    const message = extractApiError(err, err?.response?.data)
+    const message = extractSapMessage(err?.response?.data, err)
 
     $q.notify({
       type: 'negative',
@@ -405,6 +405,28 @@ async function sendToSap() {
       multiLine: true,
     })
   }
+}
+
+/* ================== GET SAP ERROR MESSAGE ================== */
+
+function extractSapMessage(resData, err) {
+  // 1️⃣ SAP business error (your exact structure)
+  if (resData?.sapResponse?.error?.message?.value) {
+    return resData.sapResponse.error.message.value
+  }
+
+  // 2️⃣ Axios error response (if thrown)
+  if (err?.response?.data?.sapResponse?.error?.message?.value) {
+    return err.response.data.sapResponse.error.message.value
+  }
+
+  // 3️⃣ Backend message
+  if (resData?.message) {
+    return resData.message
+  }
+
+  // 4️⃣ Generic fallback
+  return err?.message || 'Operation failed'
 }
 
 /* ================== SAVE DOCUMENT ================== */

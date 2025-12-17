@@ -28,12 +28,12 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { logout, isAuthenticated } from 'src/services/auth'
+import { logout, isLoggedIn } from 'src/services/auth'
 
 const route = useRoute()
 
 const showLogout = computed(() => {
-  return isAuthenticated() && route.meta?.requiresAuth === true
+  return isLoggedIn.value && route.meta?.requiresAuth
 })
 
 function onLogout() {

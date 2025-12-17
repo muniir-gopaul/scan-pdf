@@ -1,5 +1,5 @@
 import { Notify } from 'quasar'
-
+import { ref } from 'vue'
 export function isAuthenticated() {
   return !!localStorage.getItem('sapCookies')
 }
@@ -25,4 +25,10 @@ export function logout(reason = 'manual') {
 
   // 🔁 HARD redirect (prevents back navigation)
   window.location.replace('/login')
+}
+
+export const isLoggedIn = ref(!!localStorage.getItem('sapCookies'))
+
+export function setLoggedIn(value) {
+  isLoggedIn.value = value
 }

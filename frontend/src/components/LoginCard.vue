@@ -31,6 +31,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { api } from 'src/boot/axios' // ✅ USE CENTRAL API
+import { setLoggedIn } from 'src/services/auth'
 
 const companyDB = ref('')
 const username = ref('')
@@ -72,7 +73,7 @@ async function onSubmit() {
       type: 'positive',
       message: 'Login Successful',
     })
-
+    setLoggedIn(true)
     router.push('/parser') // ✅ protected page
   } catch (err) {
     error.value = err.response?.data?.message || 'Unable to connect to server'
