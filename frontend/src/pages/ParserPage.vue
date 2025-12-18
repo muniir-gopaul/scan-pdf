@@ -205,8 +205,8 @@
         <div class="col-12">
           <q-banner dense class="bg-grey-1 q-mb-sm">
             <div class="row items-center q-col-gutter-md text-caption">
-              <div class="col-auto"><q-badge color="green" /> Active in SAP</div>
-              <div class="col-auto"><q-badge color="red" /> Inactive in SAP</div>
+              <div class="col-auto"><q-badge color="green" /> SAP Active</div>
+              <div class="col-auto"><q-badge color="red" /> SAP Inactive</div>
 
               <div class="col-auto">
                 <q-icon name="check_circle" color="green" size="16px" />
@@ -220,12 +220,12 @@
 
               <div class="col-auto">
                 <q-icon name="task_alt" color="green" size="16px" />
-                Will be posted to SAP
+                Posting outcome: Allowed
               </div>
 
               <div class="col-auto">
                 <q-icon name="cancel" color="red" size="16px" />
-                Will NOT be posted
+                Posting outcome: Blocked
               </div>
             </div>
           </q-banner>
@@ -264,6 +264,15 @@
 
         <div class="col-12">
           <q-card bordered>
+            <q-btn
+              outline
+              dense
+              class="q-mb-sm"
+              :icon="showOnlyBlocked ? 'filter_alt_off' : 'filter_alt'"
+              :label="showOnlyBlocked ? 'Show all lines' : 'Show only blocked'"
+              @click="showOnlyBlocked = !showOnlyBlocked"
+            />
+            <q-separator />
             <q-card-section>
               <div class="text-h6">📦 Mapped ERP Table</div>
               <div class="text-caption">Standardized schema</div>
@@ -274,11 +283,12 @@
             <q-card-section>
               <q-table
                 :columns="mappedColumns"
-                :rows="enrichedRows"
+                :rows="filteredRows"
                 row-key="Barcode"
                 dense
                 flat
                 bordered
+                :row-class="rowClass"
               >
                 <!-- SAP ACTIVE -->
                 <template #body-cell-SAPActive="props">
@@ -341,21 +351,35 @@ function buildMappedColumns(baseColumns = []) {
   const uiColumns = [
     {
       name: 'SAPActive',
-      label: 'Status',
+      label: 'SAP Status',
       field: 'SAPActive',
       align: 'center',
-      style: 'width: 110px',
+      style: 'width: 120px',
     },
     {
       name: 'NotPostToSAP',
       label: 'Business Rules',
       field: 'NotPostToSAP',
       align: 'center',
-      style: 'width: 130px',
+      style: 'width: 140px',
+    },
+    {
+      name: 'CanPostToSAP',
+      label: 'Posting Outcome',
+      field: 'CanPostToSAP',
+      align: 'center',
+      style: 'width: 160px',
     },
   ]
 
   return [...baseColumns, ...uiColumns.filter((c) => !exists(c.name))]
+}
+
+function rowClass(row) {
+  if (!row.SAPActive) return 'row-sap-inactive'
+  if (row.NotPostToSAP) return 'row-business-blocked'
+  if (row.CanPostToSAP) return 'row-postable'
+  return ''
 }
 
 /* ================== COUNTERS ================== */
@@ -406,6 +430,8 @@ const customerOptions = ref([])
 
 const showRawTable = ref(false)
 
+const showOnlyBlocked = ref(false)
+
 /* ================== HELPERS ================== */
 
 function getBlockReason(row) {
@@ -431,6 +457,11 @@ function fixDate(input) {
   const d = new Date(s)
   return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10)
 }
+
+const filteredRows = computed(() => {
+  if (!showOnlyBlocked.value) return enrichedRows.value
+  return enrichedRows.value.filter((r) => !r.CanPostToSAP)
+})
 
 /* ================== LOAD CUSTOMER LIST ================== */
 
@@ -765,5 +796,20 @@ function resetForm() {
 
 .q-table tbody tr:hover {
   background-color: #f5f7fa;
+}
+
+/* SAP inactive */
+.row-sap-inactive {
+  background-color: #fdecea !important;
+}
+
+/* Business rule blocked */
+.row-business-blocked {
+  background-color: #fff4e5 !important;
+}
+
+/* Fully postable */
+.row-postable {
+  background-color: #e8f5e9 !important;
 }
 </style>
