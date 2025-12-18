@@ -100,8 +100,7 @@ async function enrichMappedRows(mappedRows) {
     const stock = Number(enriched.StockQty ?? 0);
 
     enriched.NotPostToSAP =
-      !enriched.ItemCode || // missing item
-      stock <= 0 || // zero or negative stock
+      stock <= 0 || // no stock
       stock < qty; // insufficient stock
 
     enriched.CanPostToSAP =

@@ -405,7 +405,7 @@ function buildMappedColumns(baseColumns = []) {
 
 function rowClass(row) {
   if (!row.SAPActive) return 'row-sap-inactive'
-  if (row.SAPActive && row.NotPostToSAP) return 'row-business-blocked'
+  if (row.NotPostToSAP) return 'row-business-blocked'
   if (row.CanPostToSAP) return 'row-postable'
   return ''
 }
@@ -495,11 +495,9 @@ const showOnlyBlocked = ref(false)
 /* ================== HELPERS ================== */
 
 function getBlockReason(row) {
-  if (!row.SAPActive) return 'Item inactive in SAP'
-  if (!row.ItemCode) return 'Item not mapped'
   if (row.StockQty <= 0) return 'No stock available'
   if (row.StockQty < row.Qty) return 'Insufficient stock'
-  return 'Ready to post'
+  return 'Business rules OK'
 }
 
 function fixDate(input) {
