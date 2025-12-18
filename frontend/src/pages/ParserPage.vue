@@ -257,7 +257,8 @@
             </div>
 
             <div class="col-auto text-green">
-              ✅ {{ postableLines }} / {{ totalLines }} lines will be posted
+              🧾 {{ postableLines }} / {{ totalLines }} lines will be posted to SAP
+              <span v-if="showOnlyBlocked" class="text-grey"> — showing blocked only </span>
             </div>
           </div>
         </q-banner>
