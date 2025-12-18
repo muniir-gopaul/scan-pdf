@@ -383,6 +383,38 @@ function rowClass(row) {
   return ''
 }
 
+const errorSummary = computed(() => {
+  const summary = {
+    inactive: 0,
+    noItem: 0,
+    noStock: 0,
+    insufficientStock: 0,
+  }
+
+  for (const row of enrichedRows.value) {
+    if (!row.SAPActive) {
+      summary.inactive++
+      continue
+    }
+
+    if (!row.ItemCode) {
+      summary.noItem++
+      continue
+    }
+
+    if (row.StockQty <= 0) {
+      summary.noStock++
+      continue
+    }
+
+    if (row.StockQty < row.Qty) {
+      summary.insufficientStock++
+    }
+  }
+
+  return summary
+})
+
 /* ================== COUNTERS ================== */
 
 const totalLines = computed(() => enrichedRows.value.length)
