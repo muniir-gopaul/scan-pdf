@@ -185,6 +185,40 @@
           </q-card>
         </div>
         <div class="col-6">
+          <!-- ================== LEGEND ================== -->
+          <q-banner dense class="bg-grey-1 q-mb-sm">
+            <div class="row items-center q-col-gutter-md text-caption">
+              <div class="col-auto"><q-badge color="green" /> Active in SAP</div>
+
+              <div class="col-auto"><q-badge color="red" /> Inactive in SAP</div>
+
+              <div class="col-auto">
+                <q-icon name="check_circle" color="green" size="16px" />
+                Business rules OK
+              </div>
+
+              <div class="col-auto">
+                <q-icon name="block" color="red" size="16px" />
+                Blocked by business rules
+              </div>
+
+              <div class="col-auto">
+                <q-icon name="task_alt" color="green" size="16px" />
+                Will be posted to SAP
+              </div>
+
+              <div class="col-auto">
+                <q-icon name="cancel" color="red" size="16px" />
+                Will NOT be posted
+              </div>
+            </div>
+          </q-banner>
+
+          <!-- ================== POST COUNT ================== -->
+          <div class="text-subtitle2 q-mb-sm">
+            🧾 {{ postableLines }} / {{ totalLines }} lines will be posted to SAP
+          </div>
+
           <!-- MAPPED ERP TABLE -->
           <q-card bordered>
             <q-card-section>
@@ -196,21 +230,44 @@
 
             <q-card-section>
               <q-table
-                v-if="mappedRows.length > 0"
                 :columns="mappedColumns"
                 :rows="enrichedRows"
                 row-key="Barcode"
-                :row-class="getRowClass"
                 dense
                 flat
                 bordered
               >
-                <template #body-cell-Status="props">
-                  <q-checkbox :model-value="isRowBlocked(props.row)" color="red" readonly />
+                <!-- SAP ACTIVE -->
+                <template #body-cell-SAPActive="props">
+                  <q-badge :color="props.row.SAPActive ? 'green' : 'red'" text-color="white">
+                    {{ props.row.SAPActive ? 'ACTIVE' : 'INACTIVE' }}
+                  </q-badge>
+                </template>
+
+                <!-- BUSINESS BLOCK -->
+                <template #body-cell-NotPostToSAP="props">
+                  <q-icon
+                    :name="props.row.NotPostToSAP ? 'block' : 'check_circle'"
+                    :color="props.row.NotPostToSAP ? 'red' : 'green'"
+                    size="18px"
+                  >
+                    <q-tooltip>{{ getBlockReason(props.row) }}</q-tooltip>
+                  </q-icon>
+                </template>
+
+                <!-- FINAL DECISION -->
+                <template #body-cell-CanPostToSAP="props">
+                  <q-icon
+                    :name="props.row.CanPostToSAP ? 'task_alt' : 'cancel'"
+                    :color="props.row.CanPostToSAP ? 'green' : 'red'"
+                    size="20px"
+                  >
+                    <q-tooltip>
+                      {{ props.row.CanPostToSAP ? 'Will be posted to SAP' : 'Blocked by system' }}
+                    </q-tooltip>
+                  </q-icon>
                 </template>
               </q-table>
-
-              <div v-else class="text-grey text-center q-pa-md">No mapped data available.</div>
             </q-card-section>
           </q-card>
 
@@ -230,12 +287,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import MainContainer from 'src/components/MainContainer.vue'
 import { useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
 
 const $q = useQuasar()
+
+/* ================== COUNTERS ================== */
+
+const totalLines = computed(() => enrichedRows.value.length)
+
+const postableLines = computed(() => enrichedRows.value.filter((r) => r.CanPostToSAP).length)
 
 /* ================== STATE ================== */
 
@@ -279,14 +342,12 @@ const customerOptions = ref([])
 
 /* ================== HELPERS ================== */
 
-function isRowBlocked(row) {
-  const qty = Number(row.Qty ?? 0)
-  const stock = Number(row.StockQty ?? 0)
-  return !row.ItemCode || stock <= 0 || stock < qty
-}
-
-function getRowClass({ row }) {
-  return isRowBlocked(row) ? 'row-blocked' : ''
+function getBlockReason(row) {
+  if (!row.SAPActive) return 'Item inactive in SAP'
+  if (!row.ItemCode) return 'Item not mapped'
+  if (row.StockQty <= 0) return 'No stock available'
+  if (row.StockQty < row.Qty) return 'Insufficient stock'
+  return 'Ready to post'
 }
 
 function fixDate(input) {
@@ -342,24 +403,45 @@ function buildSapPayload() {
   const sapLines = []
 
   for (const row of enrichedRows.value) {
-    const qty = Number(row.Qty ?? 0)
-    const stock = Number(row.StockQty ?? 0)
-    const checked = row.Status === true
-
-    let postQty = 0
-
-    if (!checked && qty > 0 && row.ItemCode) {
-      postQty = qty
-    } else if (checked && row.ItemCode && stock > 0 && stock < qty) {
-      postQty = stock
-    }
-
-    if (postQty > 0) {
-      sapLines.push({
+    /**
+     * FINAL GATE — SINGLE SOURCE OF TRUTH
+     *
+     * A line is posted to SAP ONLY IF:
+     * - Item exists
+     * - Item is Active in SAP
+     * - Business rules allow posting (NotPostToSAP === false)
+     */
+    if (!row.CanPostToSAP) {
+      console.log('⛔ SKIPPED SAP LINE', {
+        Barcode: row.Barcode,
         ItemCode: row.ItemCode,
-        Quantity: postQty,
+        SAPActive: row.SAPActive,
+        StockQty: row.StockQty,
+        Qty: row.Qty,
+        NotPostToSAP: row.NotPostToSAP,
       })
+      continue
     }
+
+    const qty = Number(row.Qty ?? 0)
+
+    if (qty <= 0) {
+      console.log('⛔ SKIPPED (INVALID QTY)', {
+        Barcode: row.Barcode,
+        Qty: row.Qty,
+      })
+      continue
+    }
+
+    sapLines.push({
+      ItemCode: row.ItemCode,
+      Quantity: qty,
+    })
+
+    console.log('✅ SAP LINE READY', {
+      ItemCode: row.ItemCode,
+      Quantity: qty,
+    })
   }
 
   return {
