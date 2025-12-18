@@ -10,9 +10,11 @@
             v-if="showLogout"
             flat
             dense
+            no-caps
             icon="logout"
             label="Logout"
-            color="negative"
+            color="grey-8"
+            class="logout-btn"
             @click="onLogout"
           />
         </div>

@@ -155,33 +155,47 @@
       <!-- ================== RAW SUPPLIER TABLE ================== -->
       <div class="row q-col-gutter-xl q-mt-lg">
         <div class="col-12">
-          <q-card bordered>
-            <q-card-section>
-              <div class="text-h6">📃 SUPPLIER PDF TABLE</div>
-              <div class="text-caption">
-                Template: <b>{{ templateName }}</b>
+          <q-card bordered class="q-mb-lg">
+            <q-card-section class="row items-center justify-between">
+              <div>
+                <div class="text-h6">📃 Supplier PDF Table</div>
+                <div class="text-caption text-grey">
+                  Template: <b>{{ templateName }}</b>
+                </div>
               </div>
+
+              <q-btn
+                flat
+                dense
+                :icon="showRawTable ? 'expand_less' : 'expand_more'"
+                @click="showRawTable = !showRawTable"
+                :label="showRawTable ? 'Hide' : 'Show'"
+              />
             </q-card-section>
 
             <q-separator />
 
-            <q-card-section>
-              <div v-if="loading" class="flex flex-center q-pa-xl">
-                <q-spinner size="50px" color="secondary" />
+            <q-slide-transition>
+              <div v-show="showRawTable">
+                <q-card-section>
+                  <div v-if="loading" class="flex flex-center q-pa-xl">
+                    <q-spinner size="50px" color="secondary" />
+                  </div>
+
+                  <q-table
+                    v-else-if="rawRows.length > 0"
+                    :columns="rawColumns"
+                    :rows="rawRows"
+                    row-key="_id"
+                    dense
+                    flat
+                    bordered
+                  />
+
+                  <div v-else class="text-grey text-center q-pa-md">No raw data extracted yet.</div>
+                </q-card-section>
               </div>
-
-              <q-table
-                v-else-if="rawRows.length > 0"
-                :columns="rawColumns"
-                :rows="rawRows"
-                row-key="_id"
-                dense
-                flat
-                bordered
-              />
-
-              <div v-else class="text-grey text-center q-pa-md">No raw data extracted yet.</div>
-            </q-card-section>
+            </q-slide-transition>
           </q-card>
         </div>
       </div>
@@ -224,6 +238,30 @@
 
       <!-- ================== MAPPED ERP TABLE ================== -->
       <div class="row q-col-gutter-xl">
+        <q-banner dense class="bg-grey-1 q-mb-sm">
+          <div class="row q-col-gutter-md text-caption">
+            <div v-if="errorSummary.inactive" class="col-auto text-red">
+              ⛔ {{ errorSummary.inactive }} inactive items in SAP
+            </div>
+
+            <div v-if="errorSummary.noItem" class="col-auto text-red">
+              📦 {{ errorSummary.noItem }} items not mapped
+            </div>
+
+            <div v-if="errorSummary.noStock" class="col-auto text-orange">
+              📉 {{ errorSummary.noStock }} items with no stock
+            </div>
+
+            <div v-if="errorSummary.insufficientStock" class="col-auto text-orange">
+              ⚠ {{ errorSummary.insufficientStock }} insufficient stock
+            </div>
+
+            <div class="col-auto text-green">
+              ✅ {{ postableLines }} / {{ totalLines }} lines will be posted
+            </div>
+          </div>
+        </q-banner>
+
         <div class="col-12">
           <q-card bordered>
             <q-card-section>
@@ -244,33 +282,31 @@
               >
                 <!-- SAP ACTIVE -->
                 <template #body-cell-SAPActive="props">
-                  <q-badge :color="props.row.SAPActive ? 'green' : 'red'" text-color="white">
-                    {{ props.row.SAPActive ? 'ACTIVE' : 'INACTIVE' }}
-                  </q-badge>
+                  <div class="flex flex-center">
+                    <q-badge
+                      :color="props.row.SAPActive ? 'green' : 'red'"
+                      text-color="white"
+                      class="q-px-sm"
+                    >
+                      {{ props.row.SAPActive ? 'ACTIVE' : 'INACTIVE' }}
+                    </q-badge>
+                  </div>
                 </template>
 
                 <!-- BUSINESS BLOCK -->
                 <template #body-cell-NotPostToSAP="props">
-                  <q-icon
-                    :name="props.row.NotPostToSAP ? 'block' : 'check_circle'"
-                    :color="props.row.NotPostToSAP ? 'red' : 'green'"
-                    size="18px"
-                  >
-                    <q-tooltip>{{ getBlockReason(props.row) }}</q-tooltip>
-                  </q-icon>
-                </template>
-
-                <!-- FINAL DECISION -->
-                <template #body-cell-CanPostToSAP="props">
-                  <q-icon
-                    :name="props.row.CanPostToSAP ? 'task_alt' : 'cancel'"
-                    :color="props.row.CanPostToSAP ? 'green' : 'red'"
-                    size="20px"
-                  >
-                    <q-tooltip>
-                      {{ props.row.CanPostToSAP ? 'Will be posted to SAP' : 'Blocked by system' }}
-                    </q-tooltip>
-                  </q-icon>
+                  <div class="flex flex-center">
+                    <q-icon
+                      :name="props.row.NotPostToSAP ? 'block' : 'check_circle'"
+                      :color="props.row.NotPostToSAP ? 'red' : 'green'"
+                      size="20px"
+                      class="cursor-pointer"
+                    >
+                      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]">
+                        {{ getBlockReason(props.row) }}
+                      </q-tooltip>
+                    </q-icon>
+                  </div>
                 </template>
               </q-table>
             </q-card-section>
@@ -305,24 +341,17 @@ function buildMappedColumns(baseColumns = []) {
   const uiColumns = [
     {
       name: 'SAPActive',
-      label: 'SAP Status',
+      label: 'Status',
       field: 'SAPActive',
       align: 'center',
-      sortable: false,
+      style: 'width: 110px',
     },
     {
       name: 'NotPostToSAP',
       label: 'Business Rules',
       field: 'NotPostToSAP',
       align: 'center',
-      sortable: false,
-    },
-    {
-      name: 'CanPostToSAP',
-      label: 'Final Decision',
-      field: 'CanPostToSAP',
-      align: 'center',
-      sortable: false,
+      style: 'width: 130px',
     },
   ]
 
@@ -374,6 +403,8 @@ const saving = ref(false)
 // CUSTOMER SELECT
 const selectedCustomerCode = ref(null)
 const customerOptions = ref([])
+
+const showRawTable = ref(false)
 
 /* ================== HELPERS ================== */
 
@@ -730,5 +761,9 @@ function resetForm() {
 .row-blocked td,
 .row-blocked {
   background-color: #ffebee !important;
+}
+
+.q-table tbody tr:hover {
+  background-color: #f5f7fa;
 }
 </style>
