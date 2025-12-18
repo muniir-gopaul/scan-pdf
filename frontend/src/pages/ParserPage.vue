@@ -153,134 +153,133 @@
         </div>
       </div>
       <div class="row q-col-gutter-lg q-my-lg">
-        <div class="col-6">
-          <!-- RAW SUPPLIER TABLE -->
-          <q-card bordered class="q-mb-lg">
-            <q-card-section>
-              <div class="text-h6">📃 SUPPLIER PDF TABLE</div>
-              <div class="text-caption">
-                Template: <b>{{ templateName }}</b>
-              </div>
-            </q-card-section>
-
-            <q-separator />
-
-            <q-card-section>
-              <div v-if="loading" class="flex flex-center q-pa-xl">
-                <q-spinner size="50px" color="secondary" />
-              </div>
-
-              <q-table
-                v-else-if="rawRows.length > 0"
-                :columns="rawColumns"
-                :rows="rawRows"
-                row-key="_id"
-                dense
-                flat
-                bordered
-              />
-
-              <div v-else class="text-grey text-center q-pa-md">No raw data extracted yet.</div>
-            </q-card-section>
-          </q-card>
-        </div>
-        <div class="col-6">
-          <!-- ================== LEGEND ================== -->
-          <q-banner dense class="bg-grey-1 q-mb-sm">
-            <div class="row items-center q-col-gutter-md text-caption">
-              <div class="col-auto"><q-badge color="green" /> Active in SAP</div>
-
-              <div class="col-auto"><q-badge color="red" /> Inactive in SAP</div>
-
-              <div class="col-auto">
-                <q-icon name="check_circle" color="green" size="16px" />
-                Business rules OK
-              </div>
-
-              <div class="col-auto">
-                <q-icon name="block" color="red" size="16px" />
-                Blocked by business rules
-              </div>
-
-              <div class="col-auto">
-                <q-icon name="task_alt" color="green" size="16px" />
-                Will be posted to SAP
-              </div>
-
-              <div class="col-auto">
-                <q-icon name="cancel" color="red" size="16px" />
-                Will NOT be posted
-              </div>
+        <!-- RAW SUPPLIER TABLE -->
+        <q-card bordered class="q-mb-lg">
+          <q-card-section>
+            <div class="text-h6">📃 SUPPLIER PDF TABLE</div>
+            <div class="text-caption">
+              Template: <b>{{ templateName }}</b>
             </div>
-          </q-banner>
+          </q-card-section>
 
-          <!-- ================== POST COUNT ================== -->
-          <div class="text-subtitle2 q-mb-sm">
-            🧾 {{ postableLines }} / {{ totalLines }} lines will be posted to SAP
+          <q-separator />
+
+          <q-card-section>
+            <div v-if="loading" class="flex flex-center q-pa-xl">
+              <q-spinner size="50px" color="secondary" />
+            </div>
+
+            <q-table
+              v-else-if="rawRows.length > 0"
+              :columns="rawColumns"
+              :rows="rawRows"
+              row-key="_id"
+              dense
+              flat
+              bordered
+            />
+
+            <div v-else class="text-grey text-center q-pa-md">No raw data extracted yet.</div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="row q-col-gutter-lg q-my-lg">
+        >
+        <!-- ================== LEGEND ================== -->
+        <q-banner dense class="bg-grey-1 q-mb-sm">
+          <div class="row items-center q-col-gutter-md text-caption">
+            <div class="col-auto"><q-badge color="green" /> Active in SAP</div>
+
+            <div class="col-auto"><q-badge color="red" /> Inactive in SAP</div>
+
+            <div class="col-auto">
+              <q-icon name="check_circle" color="green" size="16px" />
+              Business rules OK
+            </div>
+
+            <div class="col-auto">
+              <q-icon name="block" color="red" size="16px" />
+              Blocked by business rules
+            </div>
+
+            <div class="col-auto">
+              <q-icon name="task_alt" color="green" size="16px" />
+              Will be posted to SAP
+            </div>
+
+            <div class="col-auto">
+              <q-icon name="cancel" color="red" size="16px" />
+              Will NOT be posted
+            </div>
           </div>
+        </q-banner>
 
-          <!-- MAPPED ERP TABLE -->
-          <q-card bordered>
-            <q-card-section>
-              <div class="text-h6">📦 Mapped ERP Table</div>
-              <div class="text-caption">Standardized schema</div>
-            </q-card-section>
-
-            <q-separator />
-
-            <q-card-section>
-              <q-table
-                :columns="mappedColumns"
-                :rows="enrichedRows"
-                row-key="Barcode"
-                dense
-                flat
-                bordered
-              >
-                <!-- SAP ACTIVE -->
-                <template #body-cell-SAPActive="props">
-                  <q-badge :color="props.row.SAPActive ? 'green' : 'red'" text-color="white">
-                    {{ props.row.SAPActive ? 'ACTIVE' : 'INACTIVE' }}
-                  </q-badge>
-                </template>
-
-                <!-- BUSINESS BLOCK -->
-                <template #body-cell-NotPostToSAP="props">
-                  <q-icon
-                    :name="props.row.NotPostToSAP ? 'block' : 'check_circle'"
-                    :color="props.row.NotPostToSAP ? 'red' : 'green'"
-                    size="18px"
-                  >
-                    <q-tooltip>{{ getBlockReason(props.row) }}</q-tooltip>
-                  </q-icon>
-                </template>
-
-                <!-- FINAL DECISION -->
-                <template #body-cell-CanPostToSAP="props">
-                  <q-icon
-                    :name="props.row.CanPostToSAP ? 'task_alt' : 'cancel'"
-                    :color="props.row.CanPostToSAP ? 'green' : 'red'"
-                    size="20px"
-                  >
-                    <q-tooltip>
-                      {{ props.row.CanPostToSAP ? 'Will be posted to SAP' : 'Blocked by system' }}
-                    </q-tooltip>
-                  </q-icon>
-                </template>
-              </q-table>
-            </q-card-section>
-          </q-card>
-
-          <q-btn
-            label="Save Document"
-            color="primary"
-            icon="save"
-            class="q-mt-md"
-            :loading="saving"
-            :disable="saving || enrichedRows.length === 0"
-            @click="saveDocument"
-          />
+        <!-- ================== POST COUNT ================== -->
+        <div class="text-subtitle2 q-mb-sm">
+          🧾 {{ postableLines }} / {{ totalLines }} lines will be posted to SAP
         </div>
+
+        <!-- MAPPED ERP TABLE -->
+        <q-card bordered>
+          <q-card-section>
+            <div class="text-h6">📦 Mapped ERP Table</div>
+            <div class="text-caption">Standardized schema</div>
+          </q-card-section>
+
+          <q-separator />
+
+          <q-card-section>
+            <q-table
+              :columns="mappedColumns"
+              :rows="enrichedRows"
+              row-key="Barcode"
+              dense
+              flat
+              bordered
+            >
+              <!-- SAP ACTIVE -->
+              <template #body-cell-SAPActive="props">
+                <q-badge :color="props.row.SAPActive ? 'green' : 'red'" text-color="white">
+                  {{ props.row.SAPActive ? 'ACTIVE' : 'INACTIVE' }}
+                </q-badge>
+              </template>
+
+              <!-- BUSINESS BLOCK -->
+              <template #body-cell-NotPostToSAP="props">
+                <q-icon
+                  :name="props.row.NotPostToSAP ? 'block' : 'check_circle'"
+                  :color="props.row.NotPostToSAP ? 'red' : 'green'"
+                  size="18px"
+                >
+                  <q-tooltip>{{ getBlockReason(props.row) }}</q-tooltip>
+                </q-icon>
+              </template>
+
+              <!-- FINAL DECISION -->
+              <template #body-cell-CanPostToSAP="props">
+                <q-icon
+                  :name="props.row.CanPostToSAP ? 'task_alt' : 'cancel'"
+                  :color="props.row.CanPostToSAP ? 'green' : 'red'"
+                  size="20px"
+                >
+                  <q-tooltip>
+                    {{ props.row.CanPostToSAP ? 'Will be posted to SAP' : 'Blocked by system' }}
+                  </q-tooltip>
+                </q-icon>
+              </template>
+            </q-table>
+          </q-card-section>
+        </q-card>
+
+        <q-btn
+          label="Save Document"
+          color="primary"
+          icon="save"
+          class="q-mt-md"
+          :loading="saving"
+          :disable="saving || enrichedRows.length === 0"
+          @click="saveDocument"
+        />
       </div>
     </MainContainer>
   </q-page>
@@ -293,6 +292,36 @@ import { useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
 
 const $q = useQuasar()
+
+function buildMappedColumns(baseColumns = []) {
+  const exists = (name) => baseColumns.some((c) => c.name === name)
+
+  const uiColumns = [
+    {
+      name: 'SAPActive',
+      label: 'SAP Status',
+      field: 'SAPActive',
+      align: 'center',
+      sortable: false,
+    },
+    {
+      name: 'NotPostToSAP',
+      label: 'Business Rules',
+      field: 'NotPostToSAP',
+      align: 'center',
+      sortable: false,
+    },
+    {
+      name: 'CanPostToSAP',
+      label: 'Final Decision',
+      field: 'CanPostToSAP',
+      align: 'center',
+      sortable: false,
+    },
+  ]
+
+  return [...baseColumns, ...uiColumns.filter((c) => !exists(c.name))]
+}
 
 /* ================== COUNTERS ================== */
 
@@ -617,7 +646,7 @@ const extractPdf = async () => {
 
     rawColumns.value = json.columnsRaw || []
     rawRows.value = json.rawRows || []
-    mappedColumns.value = json.columnsMapped || []
+    mappedColumns.value = buildMappedColumns(json.columnsMapped || [])
     mappedRows.value = json.mappedRows || []
     enrichedRows.value = json.enrichedRows || json.mappedRows || []
 
