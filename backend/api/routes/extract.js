@@ -103,12 +103,6 @@ router.post("/", upload.single("pdf"), async (req, res) => {
           field: "StockQty",
           align: "center",
         },
-        {
-          name: "Status",
-          label: "Status",
-          field: "Status",
-          align: "center",
-        },
       ],
     });
   } catch (err) {
