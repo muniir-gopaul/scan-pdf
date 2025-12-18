@@ -8,7 +8,6 @@
           <!-- 🔐 Logout button (only when authenticated + protected route) -->
           <q-btn
             v-if="showLogout"
-            flat
             dense
             no-caps
             icon="logout"

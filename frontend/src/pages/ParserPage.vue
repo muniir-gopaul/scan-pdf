@@ -306,20 +306,16 @@
 
                 <!-- BUSINESS BLOCK -->
                 <template #body-cell-NotPostToSAP="props">
-                  <div class="flex flex-center">
-                    <!-- SAP inactive → N/A -->
-                    <q-icon
-                      v-if="!props.row.SAPActive"
-                      name="remove_circle_outline"
-                      color="grey"
-                      size="20px"
-                    >
+                  <!-- SAP inactive → N/A -->
+                  <div v-if="!props.row.SAPActive" class="flex flex-center">
+                    <q-icon name="remove_circle_outline" color="grey" size="20px">
                       <q-tooltip>Not applicable (SAP inactive)</q-tooltip>
                     </q-icon>
+                  </div>
 
-                    <!-- SAP active → evaluate business rules -->
+                  <!-- SAP active → business rules -->
+                  <div v-else class="flex flex-center">
                     <q-icon
-                      v-else
                       :name="props.row.NotPostToSAP ? 'block' : 'check_circle'"
                       :color="props.row.NotPostToSAP ? 'red' : 'green'"
                       size="20px"
@@ -872,5 +868,19 @@ function resetForm() {
 /* Fully postable */
 .row-postable {
   background-color: #e8f5e9 !important;
+}
+
+/* FORCE ROW BOTTOM BORDER TO CONTINUE ACROSS ALL COLUMNS */
+.q-table tbody tr {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.q-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+/* REMOVE TD BOTTOM BORDERS SO ROW BORDER IS AUTHORITATIVE */
+.q-table tbody td {
+  border-bottom: none !important;
 }
 </style>
