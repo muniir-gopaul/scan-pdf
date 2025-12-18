@@ -307,14 +307,41 @@
                 <!-- BUSINESS BLOCK -->
                 <template #body-cell-NotPostToSAP="props">
                   <div class="flex flex-center">
+                    <!-- SAP inactive → N/A -->
                     <q-icon
+                      v-if="!props.row.SAPActive"
+                      name="remove_circle_outline"
+                      color="grey"
+                      size="20px"
+                    >
+                      <q-tooltip>Not applicable (SAP inactive)</q-tooltip>
+                    </q-icon>
+
+                    <!-- SAP active → evaluate business rules -->
+                    <q-icon
+                      v-else
                       :name="props.row.NotPostToSAP ? 'block' : 'check_circle'"
                       :color="props.row.NotPostToSAP ? 'red' : 'green'"
                       size="20px"
-                      class="cursor-pointer"
                     >
-                      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]">
-                        {{ getBlockReason(props.row) }}
+                      <q-tooltip>
+                        {{
+                          props.row.NotPostToSAP ? getBlockReason(props.row) : 'Business rules OK'
+                        }}
+                      </q-tooltip>
+                    </q-icon>
+                  </div>
+                </template>
+
+                <template #body-cell-CanPostToSAP="props">
+                  <div class="flex flex-center">
+                    <q-icon
+                      :name="props.row.CanPostToSAP ? 'task_alt' : 'cancel'"
+                      :color="props.row.CanPostToSAP ? 'green' : 'red'"
+                      size="22px"
+                    >
+                      <q-tooltip>
+                        {{ props.row.CanPostToSAP ? 'Posting allowed' : 'Posting blocked' }}
                       </q-tooltip>
                     </q-icon>
                   </div>
@@ -378,7 +405,7 @@ function buildMappedColumns(baseColumns = []) {
 
 function rowClass(row) {
   if (!row.SAPActive) return 'row-sap-inactive'
-  if (row.NotPostToSAP) return 'row-business-blocked'
+  if (row.SAPActive && row.NotPostToSAP) return 'row-business-blocked'
   if (row.CanPostToSAP) return 'row-postable'
   return ''
 }
@@ -493,7 +520,10 @@ function fixDate(input) {
 
 const filteredRows = computed(() => {
   if (!showOnlyBlocked.value) return enrichedRows.value
-  return enrichedRows.value.filter((r) => !r.CanPostToSAP)
+
+  return enrichedRows.value.filter(
+    (r) => !r.CanPostToSAP, // includes SAP inactive + business blocked
+  )
 })
 
 /* ================== LOAD CUSTOMER LIST ================== */

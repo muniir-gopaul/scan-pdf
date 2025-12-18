@@ -13,7 +13,8 @@
             no-caps
             icon="logout"
             label="Logout"
-            color="grey-8"
+            color="white"
+            text-color="grey-8"
             class="logout-btn"
             @click="onLogout"
           />
