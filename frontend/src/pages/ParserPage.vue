@@ -152,7 +152,7 @@
           </q-card>
         </div>
       </div>
-      <div class="row q-col-gutter-lg q-my-lg">
+      <div class="row q-col-gutter-xl">
         <!-- RAW SUPPLIER TABLE -->
         <q-card bordered class="q-mb-lg">
           <q-card-section>
@@ -183,8 +183,7 @@
           </q-card-section>
         </q-card>
       </div>
-      <div class="row q-col-gutter-lg q-my-lg">
-        >
+      <div class="row q-col-gutter-xl">
         <!-- ================== LEGEND ================== -->
         <q-banner dense class="bg-grey-1 q-mb-sm">
           <div class="row items-center q-col-gutter-md text-caption">
