@@ -8,14 +8,15 @@
           <!-- 🔐 Logout button (only when authenticated + protected route) -->
           <q-btn
             v-if="showLogout"
+            icon-right="logout"
+            size="md"
             dense
-            no-caps
-            icon="logout"
+            icon-size="10px"
             label="Logout"
+            @click="onLogout"
+            class="rounded-borders q-mr-md"
             color="white"
             text-color="grey-8"
-            class="logout-btn"
-            @click="onLogout"
           />
         </div>
       </q-toolbar>

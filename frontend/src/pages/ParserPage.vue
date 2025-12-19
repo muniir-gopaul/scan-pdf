@@ -5,100 +5,107 @@
         <!-- LEFT PANEL -->
         <div class="col-6">
           <!-- HEADER INFO -->
-          <div class="q-mb-md">
-            <q-banner rounded class="text-dark q-pa-sm">
-              <!-- CUSTOMER SELECT -->
-              <q-select
-                outlined
-                dense
-                v-model="selectedCustomerCode"
-                :options="customerOptions"
-                label="Customer Code"
-                emit-value
-                map-options
-                @update:model-value="loadCustomerName"
-                class="q-mb-sm"
-              />
+          <q-banner rounded class="header-card q-pa-none">
+            <!-- CUSTOMER SELECT -->
+            <q-select
+              outlined
+              dense
+              v-model="selectedCustomerCode"
+              :options="customerOptions"
+              label="Customer Code"
+              emit-value
+              map-options
+              @update:model-value="loadCustomerName"
+              class="q-mb-sm"
+            />
 
-              <!-- GRID OF READONLY ERP FIELDS -->
-              <div class="row q-col-gutter-sm">
-                <!-- Customer Code -->
-                <div class="col-6">
-                  <q-input
-                    outlined
-                    dense
-                    readonly
-                    v-model="header.CustomerCode"
-                    label="Customer Code"
-                  />
-                </div>
-
-                <!-- Customer Name -->
-                <div class="col-6">
-                  <q-input
-                    outlined
-                    dense
-                    readonly
-                    v-model="header.CustomerName"
-                    label="Customer Name"
-                  />
-                </div>
-
-                <!-- PO Number -->
-                <div class="col-6">
-                  <q-input outlined dense readonly v-model="header.PONumber" label="PO Number" />
-                </div>
-
-                <!-- Order Date -->
-                <div class="col-6">
-                  <q-input outlined dense readonly v-model="header.OrderDate" label="Order Date" />
-                </div>
-
-                <!-- Delivery Date -->
-                <div class="col-6">
-                  <q-input
-                    outlined
-                    dense
-                    readonly
-                    v-model="header.DeliveryDate"
-                    label="Delivery Date"
-                  />
-                </div>
-
-                <!-- Posting Date (NEW) -->
-                <div class="col-6">
-                  <q-input
-                    outlined
-                    dense
-                    v-model="header.PostingDate"
-                    label="Posting Date"
-                    mask="####-##-##"
-                    readonly
-                  >
-                    <template #append>
-                      <q-icon name="event" class="cursor-pointer">
-                        <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                          <q-date v-model="header.PostingDate" mask="YYYY-MM-DD" />
-                        </q-popup-proxy>
-                      </q-icon>
-                    </template>
-                  </q-input>
-                </div>
-                <!-- Confirmed field set to YES by default -->
-                <div class="col-6">
-                  <!-- <q-input outlined dense readonly v-model="header.confirmed" label="Confirmed" /> -->
-                </div>
-                <!-- Posted By (NEW) -->
-                <div class="col-6">
-                  <q-input outlined dense readonly v-model="header.PostedBy" label="Posted By" />
-                </div>
+            <!-- GRID OF READONLY ERP FIELDS -->
+            <div class="row q-col-gutter-sm">
+              <!-- Customer Code -->
+              <div class="col-6">
+                <q-input
+                  outlined
+                  dense
+                  readonly
+                  v-model="header.CustomerCode"
+                  label="Customer Code"
+                />
               </div>
-            </q-banner>
-          </div>
+
+              <!-- Customer Name -->
+              <div class="col-6">
+                <q-input
+                  outlined
+                  dense
+                  readonly
+                  v-model="header.CustomerName"
+                  label="Customer Name"
+                />
+              </div>
+
+              <!-- PO Number -->
+              <div class="col-6">
+                <q-input outlined dense readonly v-model="header.PONumber" label="PO Number" />
+              </div>
+
+              <!-- Order Date -->
+              <div class="col-6">
+                <q-input outlined dense readonly v-model="header.OrderDate" label="Order Date" />
+              </div>
+
+              <!-- Delivery Date -->
+              <div class="col-6">
+                <q-input
+                  outlined
+                  dense
+                  v-model="header.DeliveryDate"
+                  label="Delivery Date"
+                  mask="####-##-##"
+                  readonly
+                >
+                  <template #append>
+                    <q-icon name="event" class="cursor-pointer">
+                      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                        <q-date v-model="header.DeliveryDate" mask="YYYY-MM-DD" />
+                      </q-popup-proxy>
+                    </q-icon>
+                  </template>
+                </q-input>
+              </div>
+
+              <!-- Posting Date (NEW) -->
+              <div class="col-6">
+                <q-input
+                  outlined
+                  dense
+                  v-model="header.PostingDate"
+                  label="Posting Date"
+                  mask="####-##-##"
+                  readonly
+                >
+                  <template #append>
+                    <q-icon name="event" class="cursor-pointer">
+                      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                        <q-date v-model="header.PostingDate" mask="YYYY-MM-DD" />
+                      </q-popup-proxy>
+                    </q-icon>
+                  </template>
+                </q-input>
+              </div>
+              <!-- Confirmed field set to YES by default -->
+              <div class="col-6">
+                <!-- <q-input outlined dense readonly v-model="header.confirmed" label="Confirmed" /> -->
+              </div>
+              <!-- Posted By (NEW) -->
+              <div class="col-6">
+                <q-input outlined dense readonly v-model="header.PostedBy" label="Posted By" />
+              </div>
+            </div>
+          </q-banner>
         </div>
         <div class="col-6">
           <!-- PDF UPLOAD + TEMPLATE -->
-          <q-card flat bordered class="q-pa-md">
+          <q-card flat bordered class="q-pa-none">
             <q-card-section>
               <div class="text-h6">📄 PDF Data Extraction</div>
               <div class="text-caption text-grey-7">Upload your PDF and extract table data</div>
@@ -138,8 +145,8 @@
               </q-file>
             </q-card-section>
 
-            <q-card-actions align="right">
-              <q-btn label="Reset" flat color="grey" @click="resetForm" />
+            <q-card-actions align="center">
+              <!-- <q-btn label="Reset" flat color="grey" @click="resetForm" /> -->
               <q-btn
                 label="Extract"
                 color="secondary"
@@ -152,10 +159,12 @@
           </q-card>
         </div>
       </div>
+    </MainContainer>
+    <MainContainer>
       <!-- ================== RAW SUPPLIER TABLE ================== -->
-      <div class="row q-col-gutter-xl q-mt-lg">
+      <div class="row">
         <div class="col-12">
-          <q-card bordered class="q-mb-lg">
+          <q-card class="glass-card no-shadow">
             <q-card-section class="row items-center justify-between">
               <div>
                 <div class="text-h6">📃 Supplier PDF Table</div>
@@ -190,6 +199,7 @@
                     dense
                     flat
                     bordered
+                    class="pretty-table"
                   />
 
                   <div v-else class="text-grey text-center q-pa-md">No raw data extracted yet.</div>
@@ -199,11 +209,12 @@
           </q-card>
         </div>
       </div>
-
-      <!-- ================== LEGEND + COUNTERS ================== -->
-      <div class="row q-col-gutter-xl q-mt-lg">
+    </MainContainer>
+    <!-- ================== LEGEND + COUNTERS ================== -->
+    <MainContainer>
+      <div class="row">
         <div class="col-12">
-          <q-banner dense class="bg-grey-1 q-mb-sm">
+          <q-banner dense class="glass-card q-mb-sm">
             <div class="row items-center q-col-gutter-md text-caption">
               <div class="col-auto"><q-badge color="green" /> SAP Active</div>
               <div class="col-auto"><q-badge color="red" /> SAP Inactive</div>
@@ -220,60 +231,57 @@
 
               <div class="col-auto">
                 <q-icon name="task_alt" color="green" size="16px" />
-                Posting outcome: Allowed
+                SAP Posting: Allowed
               </div>
 
               <div class="col-auto">
                 <q-icon name="cancel" color="red" size="16px" />
-                Posting outcome: Blocked
+                SAP Posting: Blocked
+              </div>
+              <div class="col-auto">
+                <q-icon name="cancel" color="red" size="16px" />
+                Blocked — SAP inactive
               </div>
             </div>
           </q-banner>
-
-          <div class="text-subtitle2 q-mb-sm">
-            🧾 {{ postableLines }} / {{ totalLines }} lines will be posted to SAP
-          </div>
         </div>
       </div>
 
       <!-- ================== MAPPED ERP TABLE ================== -->
-      <div class="row q-col-gutter-xl">
-        <q-banner dense class="bg-grey-1 q-mb-sm">
-          <div class="row q-col-gutter-md text-caption">
-            <div v-if="errorSummary.inactive" class="col-auto text-red">
-              ⛔ {{ errorSummary.inactive }} inactive items in SAP
-            </div>
+      <div class="row">
+        <div class="col-12">
+          <q-banner dense class="glass-card q-mb-sm">
+            <div class="row q-col-gutter-md text-caption">
+              <div v-if="errorSummary.inactive" class="col-auto text-red">
+                ⛔ {{ errorSummary.inactive }} inactive items in SAP
+              </div>
 
-            <div v-if="errorSummary.noItem" class="col-auto text-red">
-              📦 {{ errorSummary.noItem }} items not mapped
-            </div>
+              <div v-if="errorSummary.noItem" class="col-auto text-red">
+                📦 {{ errorSummary.noItem }} items not mapped
+              </div>
 
-            <div v-if="errorSummary.noStock" class="col-auto text-orange">
-              📉 {{ errorSummary.noStock }} items with no stock
-            </div>
+              <div v-if="errorSummary.noStock" class="col-auto text-orange">
+                📉 {{ errorSummary.noStock }} items with no stock
+              </div>
 
-            <div v-if="errorSummary.insufficientStock" class="col-auto text-orange">
-              ⚠ {{ errorSummary.insufficientStock }} insufficient stock
-            </div>
+              <div v-if="errorSummary.insufficientStock" class="col-auto text-orange">
+                ⚠ {{ errorSummary.insufficientStock }} insufficient stock
+              </div>
 
-            <div class="col-auto text-green">
-              🧾 {{ postableLines }} / {{ totalLines }} lines will be posted to SAP
-              <span v-if="showOnlyBlocked" class="text-grey"> — showing blocked only </span>
+              <div class="col-auto text-green">
+                🧾 {{ postableLines }} / {{ totalLines }} lines will be posted to SAP
+                <span v-if="showOnlyBlocked" class="text-grey"> — showing blocked only </span>
+              </div>
+              <div class="col-auto">
+                <q-icon name="do_not_disturb" color="grey" size="16px" />
+                Business rules not evaluated
+              </div>
             </div>
-          </div>
-        </q-banner>
+          </q-banner>
+        </div>
 
         <div class="col-12">
           <q-card bordered>
-            <q-btn
-              outline
-              dense
-              class="q-mb-sm"
-              :icon="showOnlyBlocked ? 'filter_alt_off' : 'filter_alt'"
-              :label="showOnlyBlocked ? 'Show all lines' : 'Show only blocked'"
-              @click="showOnlyBlocked = !showOnlyBlocked"
-            />
-            <q-separator />
             <q-card-section>
               <div class="text-h6">📦 Mapped ERP Table</div>
               <div class="text-caption">Standardized schema</div>
@@ -283,77 +291,87 @@
 
             <q-card-section>
               <q-table
+                :key="`${enrichedRows.length}-${showOnlyBlocked}`"
                 :columns="mappedColumns"
                 :rows="filteredRows"
                 row-key="Barcode"
                 dense
                 flat
                 bordered
+                separator="horizontal"
                 :row-class="rowClass"
+                class="pretty-table"
               >
                 <!-- SAP ACTIVE -->
                 <template #body-cell-SAPActive="props">
-                  <div class="flex flex-center">
-                    <q-badge
-                      :color="props.row.SAPActive ? 'green' : 'red'"
-                      text-color="white"
-                      class="q-px-sm"
-                    >
-                      {{ props.row.SAPActive ? 'ACTIVE' : 'INACTIVE' }}
-                    </q-badge>
-                  </div>
+                  <q-td :props="props">
+                    <div class="flex flex-center">
+                      <q-badge
+                        :color="props.row.SAPActive ? 'green' : 'red'"
+                        text-color="white"
+                        class="q-px-sm"
+                      >
+                        {{ props.row.SAPActive ? 'ACTIVE' : 'INACTIVE' }}
+                      </q-badge>
+                    </div>
+                  </q-td>
                 </template>
 
-                <!-- BUSINESS BLOCK -->
                 <template #body-cell-NotPostToSAP="props">
-                  <!-- SAP inactive → N/A -->
-                  <div v-if="!props.row.SAPActive" class="flex flex-center">
-                    <q-icon name="remove_circle_outline" color="grey" size="20px">
-                      <q-tooltip>Not applicable (SAP inactive)</q-tooltip>
-                    </q-icon>
-                  </div>
-
-                  <!-- SAP active → business rules -->
-                  <div v-else class="flex flex-center">
-                    <q-icon
-                      :name="props.row.NotPostToSAP ? 'block' : 'check_circle'"
-                      :color="props.row.NotPostToSAP ? 'red' : 'green'"
-                      size="20px"
-                    >
-                      <q-tooltip>
-                        {{
-                          props.row.NotPostToSAP ? getBlockReason(props.row) : 'Business rules OK'
-                        }}
-                      </q-tooltip>
-                    </q-icon>
-                  </div>
+                  <q-td :props="props">
+                    <div class="flex flex-center">
+                      <q-icon
+                        v-if="props.row.NotPostToSAP === null"
+                        name="do_not_disturb"
+                        color="grey"
+                        size="20px"
+                      />
+                      <q-icon
+                        v-else-if="props.row.NotPostToSAP"
+                        name="block"
+                        color="red"
+                        size="20px"
+                      >
+                        <q-tooltip>
+                          {{ getBlockReason(props.row) }}
+                        </q-tooltip>
+                      </q-icon>
+                      <q-icon v-else name="check_circle" color="green" size="20px" />
+                    </div>
+                  </q-td>
                 </template>
 
                 <template #body-cell-CanPostToSAP="props">
-                  <div class="flex flex-center">
-                    <q-icon
-                      :name="props.row.CanPostToSAP ? 'task_alt' : 'cancel'"
-                      :color="props.row.CanPostToSAP ? 'green' : 'red'"
-                      size="22px"
-                    >
-                      <q-tooltip>
-                        {{ props.row.CanPostToSAP ? 'Posting allowed' : 'Posting blocked' }}
-                      </q-tooltip>
-                    </q-icon>
-                  </div>
+                  <q-td :props="props">
+                    <div class="flex flex-center">
+                      <q-icon
+                        v-if="props.row.CanPostToSAP"
+                        name="task_alt"
+                        color="green"
+                        size="22px"
+                      />
+                      <q-icon
+                        v-else-if="props.row.NotPostToSAP === true || props.row.SAPActive === false"
+                        name="cancel"
+                        color="red"
+                        size="22px"
+                      />
+                      <q-icon v-else name="do_not_disturb" color="grey" size="22px" />
+                    </div>
+                  </q-td>
                 </template>
               </q-table>
             </q-card-section>
           </q-card>
-
           <q-btn
-            label="Save Document"
-            color="primary"
-            icon="save"
-            class="q-mt-md"
+            icon="cloud_upload"
+            color="light-blue-14"
+            label="Submit"
+            class="rounded-borders q-mt-md"
             :loading="saving"
             :disable="saving || enrichedRows.length === 0"
             @click="saveDocument"
+            outline
           />
         </div>
       </div>
@@ -362,47 +380,79 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import MainContainer from 'src/components/MainContainer.vue'
 import { useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
 
 const $q = useQuasar()
 
-function buildMappedColumns(baseColumns = []) {
-  const exists = (name) => baseColumns.some((c) => c.name === name)
+/* ================== COUNTERS ================== */
 
-  const uiColumns = [
-    {
-      name: 'SAPActive',
-      label: 'SAP Status',
-      field: 'SAPActive',
-      align: 'center',
-      style: 'width: 120px',
-    },
-    {
-      name: 'NotPostToSAP',
-      label: 'Business Rules',
-      field: 'NotPostToSAP',
-      align: 'center',
-      style: 'width: 140px',
-    },
-    {
-      name: 'CanPostToSAP',
-      label: 'Posting Outcome',
-      field: 'CanPostToSAP',
-      align: 'center',
-      style: 'width: 160px',
-    },
-  ]
+const totalLines = computed(() => enrichedRows.value.length)
 
-  return [...baseColumns, ...uiColumns.filter((c) => !exists(c.name))]
-}
+const postableLines = computed(() => enrichedRows.value.filter((r) => r.CanPostToSAP).length)
+
+/* ================== STATE ================== */
+
+const templateName = ref(null)
+const templateOptions = [
+  { label: 'Dreamprice', value: 'dreamprice' },
+  { label: 'Winners', value: 'winners' },
+]
+
+const pdfFile = ref(null)
+
+/* ✅ HEADER IS NEVER NULL */
+const header = ref({
+  CustomerCode: '',
+  CustomerName: '',
+  PONumber: '',
+  OrderDate: '',
+  DeliveryDate: '',
+  PostingDate: null,
+  PostedBy: '',
+  confirmed: 'Yes',
+})
+
+// RAW
+const rawColumns = ref([])
+const rawRows = ref([])
+
+// MAPPED
+// const mappedRows = ref([])
+
+// ENRICHED
+const enrichedRows = ref([])
+
+const loading = ref(false)
+const saving = ref(false)
+
+// CUSTOMER SELECT
+const selectedCustomerCode = ref(null)
+const customerOptions = ref([])
+
+const showRawTable = ref(false)
+
+const showOnlyBlocked = ref(false)
+
+const mappedColumns = [
+  { name: 'Barcode', label: 'Barcode', field: 'Barcode', align: 'left' },
+  { name: 'ItemCode', label: 'Item Code', field: 'ItemCode', align: 'left' },
+  { name: 'Description', label: 'PDF Description', field: 'Description', align: 'left' },
+  { name: 'Qty', label: 'Qty', field: 'Qty', align: 'right' },
+  { name: 'StockQty', label: 'Stock Qty', field: 'StockQty', align: 'center' },
+
+  // 🔑 THESE MUST HAVE A FIELD
+  { name: 'SAPActive', label: 'SAP Status', field: 'SAPActive', align: 'center' },
+  { name: 'NotPostToSAP', label: 'SAP Rules', field: 'NotPostToSAP', align: 'center' },
+  { name: 'CanPostToSAP', label: 'SAP Posting', field: 'CanPostToSAP', align: 'center' },
+]
 
 function rowClass(row) {
-  if (!row.SAPActive) return 'row-sap-inactive'
-  if (row.NotPostToSAP) return 'row-business-blocked'
-  if (row.CanPostToSAP) return 'row-postable'
+  if (row.SAPActive === false) return 'row-sap-inactive'
+  if (row.NotPostToSAP === true) return 'row-business-blocked'
+  if (row.CanPostToSAP === true) return 'row-postable'
   return ''
 }
 
@@ -438,55 +488,16 @@ const errorSummary = computed(() => {
   return summary
 })
 
-/* ================== COUNTERS ================== */
-
-const totalLines = computed(() => enrichedRows.value.length)
-
-const postableLines = computed(() => enrichedRows.value.filter((r) => r.CanPostToSAP).length)
-
-/* ================== STATE ================== */
-
-const templateName = ref(null)
-const templateOptions = [
-  { label: 'Dreamprice', value: 'dreamprice' },
-  { label: 'Winners', value: 'winners' },
-]
-
-const pdfFile = ref(null)
-
-/* ✅ HEADER IS NEVER NULL */
-const header = ref({
-  CustomerCode: '',
-  CustomerName: '',
-  PONumber: '',
-  OrderDate: '',
-  DeliveryDate: '',
-  PostingDate: null,
-  PostedBy: '',
-  confirmed: 'Yes',
+watch(enrichedRows, () => {
+  console.table(
+    enrichedRows.value.map((r) => ({
+      Barcode: r.Barcode,
+      SAPActive: r.SAPActive,
+      NotPostToSAP: r.NotPostToSAP,
+      CanPostToSAP: r.CanPostToSAP,
+    })),
+  )
 })
-
-// RAW
-const rawColumns = ref([])
-const rawRows = ref([])
-
-// MAPPED
-const mappedColumns = ref([])
-const mappedRows = ref([])
-
-// ENRICHED
-const enrichedRows = ref([])
-
-const loading = ref(false)
-const saving = ref(false)
-
-// CUSTOMER SELECT
-const selectedCustomerCode = ref(null)
-const customerOptions = ref([])
-
-const showRawTable = ref(false)
-
-const showOnlyBlocked = ref(false)
 
 /* ================== HELPERS ================== */
 
@@ -746,8 +757,8 @@ const extractPdf = async () => {
 
   rawRows.value = []
   rawColumns.value = []
-  mappedRows.value = []
-  mappedColumns.value = []
+  // mappedRows.value = []
+  // mappedColumns.value = []
   enrichedRows.value = []
 
   try {
@@ -771,9 +782,9 @@ const extractPdf = async () => {
 
     rawColumns.value = json.columnsRaw || []
     rawRows.value = json.rawRows || []
-    mappedColumns.value = buildMappedColumns(json.columnsMapped || [])
-    mappedRows.value = json.mappedRows || []
-    enrichedRows.value = json.enrichedRows || json.mappedRows || []
+
+    // mappedRows.value = json.mappedRows || []
+    enrichedRows.value = json.enrichedRows || []
 
     $q.notify({ type: 'positive', message: 'PDF extracted successfully!' })
   } catch (err) {
@@ -785,26 +796,25 @@ const extractPdf = async () => {
 
 /* ================== RESET ================== */
 
-function resetForm() {
-  templateName.value = null
-  pdfFile.value = null
+// function resetForm() {
+//   templateName.value = null
+//   pdfFile.value = null
 
-  header.value = {
-    CustomerCode: '',
-    CustomerName: '',
-    PONumber: '',
-    OrderDate: '',
-    DeliveryDate: '',
-    PostingDate: null,
-    PostedBy: '',
-  }
+//   header.value = {
+//     CustomerCode: '',
+//     CustomerName: '',
+//     PONumber: '',
+//     OrderDate: '',
+//     DeliveryDate: '',
+//     PostingDate: null,
+//   }
 
-  rawRows.value = []
-  rawColumns.value = []
-  mappedRows.value = []
-  mappedColumns.value = []
-  enrichedRows.value = []
-}
+//   rawRows.value = []
+//   rawColumns.value = []
+//   // mappedRows.value = []
+//   // mappedColumns.value = []
+//   enrichedRows.value = []
+// }
 </script>
 
 <style>
@@ -877,10 +887,5 @@ function resetForm() {
 
 .q-table tbody tr:last-child {
   border-bottom: none;
-}
-
-/* REMOVE TD BOTTOM BORDERS SO ROW BORDER IS AUTHORITATIVE */
-.q-table tbody td {
-  border-bottom: none !important;
 }
 </style>

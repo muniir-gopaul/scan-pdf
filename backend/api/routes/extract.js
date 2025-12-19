@@ -81,29 +81,6 @@ router.post("/", upload.single("pdf"), async (req, res) => {
       mappedRows: enrichedRows,
 
       enrichedRows: enrichedRows,
-
-      columnsMapped: [
-        { name: "Barcode", label: "Barcode", field: "Barcode", align: "left" },
-        {
-          name: "ItemCode",
-          label: "Item Code",
-          field: "ItemCode",
-          align: "left",
-        },
-        {
-          name: "Description",
-          label: "PDF Description",
-          field: "Description",
-          align: "left",
-        },
-        { name: "Qty", label: "Qty", field: "Qty", align: "right" },
-        {
-          name: "StockQty",
-          label: "Stock Qty",
-          field: "StockQty",
-          align: "center",
-        },
-      ],
     });
   } catch (err) {
     console.error("❌ EXTRACT ERROR:", err);
