@@ -2,15 +2,13 @@ require("dotenv").config();
 const sql = require("mssql");
 
 const config = {
-  user: process.env.DB_USER,
+  user: process.env.DB_USER || "sa",
   password: process.env.DB_PASS,
-  server: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT), // ✅ must be NUMBER
+  server: process.env.DB_HOST, // MUST be a string
   database: process.env.DB_NAME,
   options: {
-    encrypt: false, // ✅ REQUIRED for local SQL Server
-    trustServerCertificate: true, // ✅ REQUIRED to avoid cert issues
-    enableArithAbort: true,
+    encrypt: false,
+    trustServerCertificate: true,
   },
   pool: {
     max: 10,
@@ -25,15 +23,26 @@ console.log("DB CONFIG CHECK", {
   database: process.env.DB_NAME,
   user: process.env.DB_USER,
 });
-const pool = new sql.ConnectionPool(config);
-const poolConnect = pool.connect();
+let poolPromise = null;
 
-poolConnect
-  .then(() => {
-    console.log("✅ MSSQL Connected via TCP on 1433");
-  })
-  .catch((err) => {
-    console.error("❌ MSSQL Connection Failed:", err.message);
-  });
+async function getPool() {
+  if (!poolPromise) {
+    poolPromise = sql
+      .connect(config)
+      .then((pool) => {
+        console.log("✅ MSSQL pool connected");
+        return pool;
+      })
+      .catch((err) => {
+        poolPromise = null;
+        console.error("❌ MSSQL connection failed:", err);
+        throw err;
+      });
+  }
+  return poolPromise;
+}
 
-module.exports = { sql, pool, poolConnect };
+module.exports = {
+  sql,
+  getPool,
+};

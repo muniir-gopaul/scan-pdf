@@ -34,8 +34,8 @@ const allowedOrigins = [
   "http://127.0.0.1:8090",
   // "http://192.168.16.12:8090",
   // "http://192.168.16.12:9000",
-  "http://192.168.1.45:8090",
-  "http://192.168.1.45:9000",
+  "http://192.168.16.16:8090",
+  "http://192.168.16.16:9000",
 ];
 
 app.use(
@@ -64,7 +64,7 @@ app.use("/api/extract", require("./api/routes/extract"));
 app.use("/api/pdf", require("./api/routes/pdf"));
 app.use("/api/auth", require("./api/routes/auth"));
 app.use("/api/sap", require("./api/routes/sapRoutes"));
-
+app.use('/api/company', require('./api/routes/company'))
 // ✅ Upload folder
 const upload = multer({
   dest: path.join(__dirname, "uploads/"),

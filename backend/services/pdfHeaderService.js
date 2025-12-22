@@ -1,4 +1,4 @@
-const { sql, pool } = require("../api/db");
+const { sql, getPool } = require("../api/db");
 
 /* ---------------------------------------
    SAFE DATE NORMALIZER → Always returns JS Date or null
@@ -40,6 +40,8 @@ function fixDate(input) {
    SAVE PDF HEADER
 ---------------------------------------- */
 async function savePdfHeader(header) {
+  // 🔑 ALWAYS resolve the pool first
+  const pool = await getPool();
   const transaction = new sql.Transaction(pool);
 
   try {

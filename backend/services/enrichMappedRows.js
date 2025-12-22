@@ -1,4 +1,6 @@
-const { sql, pool } = require("../api/db");
+// backend/services/enrichMappedRows.js
+
+const { sql, getPool } = require("../api/db");
 
 /* ---------------------------------------
    CLEAN BARCODE (remove leading zeros)
@@ -9,25 +11,37 @@ function cleanBarcode(bc) {
 }
 
 /* ---------------------------------------
-   EXACT SAP DB LOOKUP
+   ITEM LOOKUP BY BARCODE
 ---------------------------------------- */
 async function lookupItemByBarcode(barcode) {
   if (!barcode) return null;
 
+  // 🔑 OPTION A: force numeric barcode
+  const barcodeNum = Number(barcode);
+  console.log("🔍 Lookup barcode:", barcode, "as number:", barcodeNum);
+
+  if (!Number.isSafeInteger(barcodeNum)) {
+    console.warn("⚠️ Invalid barcode (not numeric):", barcode);
+    return null;
+  }
+
   const query = `
     SELECT 
-      LTRIM(RTRIM(CodeBars)) AS Barcode,
+      CodeBars AS Barcode,
       ItemCode,
       ItemName,
       AvailForSale,
       Active
     FROM VW_WA_ItemList
-    WHERE LTRIM(RTRIM(CodeBars)) = @barcode
+    WHERE TRY_CONVERT(BIGINT, CodeBars) = @barcode
   `;
 
   try {
-    const request = pool.request();
-    request.input("barcode", sql.VarChar, barcode);
+    const pool = await getPool(); // ✅ REQUIRED
+    const request = pool.request(); // ✅ CORRECT OBJECT
+
+    request.input("barcode", sql.BigInt, barcodeNum);
+
     const result = await request.query(query);
     return result.recordset[0] || null;
   } catch (err) {
@@ -37,65 +51,98 @@ async function lookupItemByBarcode(barcode) {
 }
 
 /* ---------------------------------------
-   STRICT ROW NORMALIZER (UI CONTRACT)
+   PRICELIST CHECK (VIEW ONLY)
+---------------------------------------- */
+async function lookupPricelistPrice(itemCode, pricelist) {
+  if (!itemCode || !Number.isInteger(pricelist) || pricelist <= 0) {
+    return null;
+  }
+
+  const query = `
+    SELECT 
+      ItemCode,
+      Price
+    FROM VW_WA_Pricelist
+    WHERE ItemCode = @itemCode
+      AND Pricelist = @pricelist
+      AND Price IS NOT NULL
+      AND Price > 0
+  `;
+
+  try {
+    const pool = await getPool();
+    const request = pool.request();
+    request.input("itemCode", sql.VarChar, itemCode);
+    request.input("pricelist", sql.Int, pricelist);
+
+    const result = await request.query(query);
+    return result.recordset[0] || null;
+  } catch (err) {
+    console.error("❌ VW_WA_Pricelist Lookup Error:", err);
+    return null;
+  }
+}
+
+/* ---------------------------------------
+   UI NORMALIZER (CONTRACT)
 ---------------------------------------- */
 function normalizeUiRow(row) {
   return {
-    // 🔒 IDENTIFIERS
     Barcode: row.Barcode || "",
     ItemCode: row.ItemCode || "",
     Description: row.Description || "",
     DBDescription: row.DBDescription || "",
 
-    // 🔒 NUMBERS
     Qty: Number(row.Qty ?? 0),
     StockQty: Number(row.StockQty ?? 0),
+    PostQty: Number(row.PostQty ?? 0),
 
-    // 🔒 UI STATUS FLAGS (3-STATE SAFE)
+    Price: row.Price ?? null,
+    PricelistStatus: row.PricelistStatus || "UNKNOWN",
+
     SAPActive: row.SAPActive === true,
     NotPostToSAP: row.NotPostToSAP === null ? null : Boolean(row.NotPostToSAP),
     CanPostToSAP: row.CanPostToSAP === true,
 
-    // 🔒 OPTIONAL / META
     SAPBarcode: row.SAPBarcode || "",
     DBMatch: Boolean(row.DBMatch),
   };
 }
 
 /* ---------------------------------------
-   ENRICH PDF ROWS WITH ALL RULES
+   ENRICH PDF ROWS (FINAL FLOW)
 ---------------------------------------- */
-async function enrichMappedRows(mappedRows) {
+async function enrichMappedRows(mappedRows, rawPricelist) {
   const final = [];
+
+  const pricelist = Number(rawPricelist);
+  const hasValidPricelist = Number.isInteger(pricelist) && pricelist > 0;
 
   for (const rawRow of mappedRows) {
     const cleanedBarcode = cleanBarcode(rawRow.Barcode);
     const dbItem = await lookupItemByBarcode(cleanedBarcode);
 
-    // ---- BASE ROW
     const enriched = {
       ...rawRow,
 
       Barcode: cleanedBarcode,
 
-      // ERP FIELDS
       ItemCode: "",
       Description: "",
       DBDescription: "",
       PDFDescription: rawRow.Description || "",
 
       StockQty: 0,
+      Price: null,
+      PricelistStatus: "UNKNOWN",
 
-      // ✅ STATE FLAGS (SAFE DEFAULTS)
       SAPActive: false,
-      NotPostToSAP: null, // ⬅️ IMPORTANT
+      NotPostToSAP: null,
       CanPostToSAP: false,
       DBMatch: false,
     };
 
-    /* ------------------------------
-       ERP RESOLUTION (SOURCE OF TRUTH)
-    ------------------------------ */
+    /* ITEM RESOLUTION */
     if (dbItem) {
       enriched.ItemCode = dbItem.ItemCode;
       enriched.Description = dbItem.ItemName;
@@ -104,34 +151,45 @@ async function enrichMappedRows(mappedRows) {
       enriched.SAPBarcode = dbItem.Barcode;
       enriched.SAPActive = dbItem.Active === "Y";
       enriched.DBMatch = true;
+    } else {
+      enriched.PricelistStatus = "ITEM_NOT_FOUND";
     }
 
-    /* ------------------------------
-       BUSINESS RULES (STOCK ONLY)
-    ------------------------------ */
-    if (enriched.SAPActive) {
-      const qty = Number(enriched.Qty ?? 0);
-      const stock = Number(enriched.StockQty ?? 0);
+    /* PRICELIST VALIDATION */
+    if (enriched.ItemCode && hasValidPricelist) {
+      const priceRow = await lookupPricelistPrice(enriched.ItemCode, pricelist);
 
-      enriched.NotPostToSAP = stock <= 0 || stock < qty;
+      if (priceRow) {
+        enriched.Price = Number(priceRow.Price);
+        enriched.PricelistStatus = "PRICELIST_EXISTS";
+      } else {
+        enriched.PricelistStatus = "NO_PRICELIST";
+      }
+    } else if (enriched.ItemCode && !hasValidPricelist) {
+      enriched.PricelistStatus = "NO_PRICELIST";
     }
+
+    /* STOCK & BUSINESS RULES */
     const qty = Number(enriched.Qty ?? 0);
     const stock = Number(enriched.StockQty ?? 0);
 
-    enriched.NotPostToSAP =
-      stock <= 0 || // no stock
-      stock < qty; // insufficient stock
+    if (enriched.SAPActive) {
+      enriched.NotPostToSAP =
+        stock <= 0 || enriched.PricelistStatus !== "PRICELIST_EXISTS";
+    } else {
+      enriched.NotPostToSAP = null;
+    }
 
-    /* ------------------------------
-       FINAL POSTING GATE
-    ------------------------------ */
+    enriched.PostQty = stock > 0 ? Math.min(qty, stock) : 0;
+
+    /* FINAL POSTING GATE */
     enriched.CanPostToSAP =
       enriched.SAPActive === true &&
       Boolean(enriched.ItemCode) &&
-      enriched.NotPostToSAP === false;
-    /* ------------------------------
-       NORMALIZE FOR UI
-    ------------------------------ */
+      enriched.NotPostToSAP === false &&
+      enriched.PostQty > 0 &&
+      enriched.PricelistStatus === "PRICELIST_EXISTS";
+
     final.push(normalizeUiRow(enriched));
   }
 

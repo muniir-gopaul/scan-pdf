@@ -2,8 +2,8 @@
 const express = require("express");
 const router = express.Router();
 const { postToSapService } = require("../../services/sapService");
-
-router.post("/post", async (req, res) => {
+const requireSapSession = require('../middleware/requireSapSession');
+router.post("/post", requireSapSession, async (req, res) => {
   try {
     const payload = req.body;
     const sapCookies = req.headers["sap-cookies"];

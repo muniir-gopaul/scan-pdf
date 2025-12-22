@@ -1,227 +1,70 @@
 // backend/extractors/dreamprice.js
-const { exec } = require("child_process");
-const fs = require("fs");
+const { execFile } = require("child_process");
 const path = require("path");
-const pdfParse = require("pdf-parse");
-const ExcelJS = require("exceljs");
+const fs = require("fs");
 
 /* ------------------------------------------------------
-   1. CHECK JAVA
+   DREAMPRICE → PYTHON EXTRACTOR BRIDGE
+   - JS keeps orchestration role
+   - Python does ALL extraction
 ------------------------------------------------------ */
-function checkJava() {
-  try {
-    require("child_process").execSync("java -version", {
-      encoding: "utf8",
-      stdio: "ignore",
-    });
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
 
-/* ------------------------------------------------------
-   2. EXTRACT HEADER USING pdf-parse
------------------------------------------------------- */
-async function extractHeader(pdfPath) {
-  const dataBuffer = fs.readFileSync(pdfPath);
-  const parsed = await pdfParse(dataBuffer);
-  const text = parsed.text;
+// 🔐 ABSOLUTE python path (NO PATH RELIANCE)
+const PYTHON_EXE = "C:\\Python311\\python.exe";
 
-  const header = {};
-
-  // Customer Name
-  const custName = text.match(
-    /(Seven Seven Co Ltd|CUSTOMER\s*:?\s*([A-Za-z0-9 .&-]+))/i
-  );
-  if (custName) {
-    header.CustomerName = custName[2] || custName[1];
-  }
-
-  // Customer Code (BRN)
-  const custCode = text.match(/C0[0-9]{6,}/i);
-  if (custCode) header.CustomerCode = custCode[0];
-
-  // PO Number
-  const poN = text.match(/PURCHASE ORDER\s*([0-9A-Za-z]+)/i);
-  if (poN) header.PONumber = poN[1];
-
-  // **Capture Delivery Date first** (this regex is more specific)
-  const delD = text.match(
-    /Delivery\s*Date\s*[:\-]?\s*([0-9]{2}\/[0-9]{2}\/[0-9]{4})/i
-  );
-  if (delD) {
-    header.DeliveryDate = delD[1].trim(); // Clean up spaces around the date
-    console.log("Delivery Date Match:", header.DeliveryDate); // Debugging line
-  }
-
-  // **Capture the next "Date" as Order Date** (it will be the next date in the document)
-  const orderD = text.match(/Date\s+([0-9]{2}\/[0-9]{2}\/[0-9]{4})/i);
-  if (orderD && !header.OrderDate) {
-    header.OrderDate = orderD[1].trim();
-    console.log("Order Date Match:", header.OrderDate); // Debugging line
-  }
-  return header;
-}
-
-/* ------------------------------------------------------
-   3. RUN TABULA (STREAM MODE)
------------------------------------------------------- */
-function runTabula(pdfPath, jarPath) {
-  return new Promise((resolve, reject) => {
-    const cmd = `java -jar "${jarPath}" --stream -p all -f JSON "${pdfPath}"`;
-
-    exec(cmd, { maxBuffer: 1024 * 1024 * 20 }, (err, stdout, stderr) => {
-      if (err) return reject(err);
-      if (!stdout) return reject(new Error("Tabula returned no output"));
-
-      try {
-        resolve(JSON.parse(stdout));
-      } catch (e) {
-        reject(new Error("Failed to parse Tabula JSON: " + e.message));
-      }
-    });
-  });
-}
-
-/* ------------------------------------------------------
-   4. PARSE DREAMPRICE ROWS
------------------------------------------------------- */
-function parseDreampriceRows(parsedTabula) {
-  const flat = [];
-
-  // Flatten Tabula rows
-  parsedTabula.forEach((page) => {
-    (page.data || []).forEach((row) => {
-      flat.push(row.map((c) => (c && c.text ? c.text.trim() : "")));
-    });
-  });
-
-  // Rows starting with barcode
-  const itemRows = flat.filter((r) => /^[0-9]{7,14}$/.test(r[0]));
-
-  const finalRows = itemRows.map((r, index) => {
-    const barcode = r[0] || "";
-    const description = r[1] || "";
-
-    // Combine remaining cells (ignore VAT text entirely)
-    const numericTokens = [r[2], r[3], r[4]]
-      .join(" ")
-      .split(/\s+/)
-      .filter((v) => /^[0-9.,]+$/.test(v));
-
-    const qty = numericTokens[0] || "";
-    const price = numericTokens[1] || "";
-    const total = numericTokens.slice(2).join(" ") || "";
-
-    return {
-      _id: index + 1,
-      Barcode: barcode,
-      Description: description,
-      Qty: qty,
-      PU_HT: price,
-      Total_HT: total,
-    };
-  });
-
-  const columns = [
-    { name: "Barcode", label: "Barcode", field: "Barcode", align: "left" },
-    {
-      name: "Description",
-      label: "Description",
-      field: "Description",
-      align: "left",
-    },
-    { name: "Qty", label: "Qty", field: "Qty", align: "right" },
-    { name: "PU_HT", label: "PU (HT)", field: "PU_HT", align: "right" },
-    {
-      name: "Total_HT",
-      label: "Total (HT)",
-      field: "Total_HT",
-      align: "right",
-    },
-  ];
-
-  return { columns, rows: finalRows };
-}
-
-/* ------------------------------------------------------
-   5. SAVE JSON + XLSX
------------------------------------------------------- */
-async function saveOutputs(rows, header, outDir) {
-  console.log("Extracted Header:", header);
-  if (!fs.existsSync(outDir)) {
-    fs.mkdirSync(outDir, { recursive: true });
-  }
-
-  const ts = Date.now();
-  const jsonPath = path.join(outDir, `dreamprice_${ts}.json`);
-  const xlsxPath = path.join(outDir, `dreamprice_${ts}.xlsx`);
-
-  // Save JSON
-  fs.writeFileSync(jsonPath, JSON.stringify({ header, rows }, null, 2));
-
-  // Save Excel
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Data");
-
-  // Add header rows
-  sheet.addRow(["CustomerName", header.CustomerName || ""]);
-  sheet.addRow(["CustomerCode", header.CustomerCode || ""]);
-  sheet.addRow(["PONumber", header.PONumber || ""]);
-  sheet.addRow(["OrderDate", header.OrderDate || ""]);
-  sheet.addRow(["DeliveryDate", header.DeliveryDate || ""]);
-  sheet.addRow([]);
-
-  const tableHeaders = [
-    "Barcode",
-    "Description",
-    "Tax",
-    "Qty",
-    "PU_HT",
-    "Total_HT",
-  ];
-  sheet.addRow(tableHeaders);
-
-  rows.forEach((r) => {
-    sheet.addRow(tableHeaders.map((k) => r[k]));
-  });
-
-  await workbook.xlsx.writeFile(xlsxPath);
-
-  return { jsonPath, xlsxPath };
-}
-
-/* ------------------------------------------------------
-   6. MAIN EXTRACTOR
------------------------------------------------------- */
 async function extractDreamprice(pdfPath, opts = {}) {
-  const jarPath = path.join(__dirname, "..", "tabula", "tabula.jar");
+  return new Promise((resolve, reject) => {
+    if (!pdfPath || !fs.existsSync(pdfPath)) {
+      return reject(new Error("PDF path is invalid or file does not exist"));
+    }
 
-  if (!checkJava()) {
-    throw new Error("Java is not installed or not in PATH.");
-  }
+    if (!fs.existsSync(PYTHON_EXE)) {
+      return reject(new Error(`Python executable not found at: ${PYTHON_EXE}`));
+    }
 
-  if (!fs.existsSync(jarPath)) {
-    throw new Error(`Tabula JAR not found at: ${jarPath}`);
-  }
+    const pyScript = path.join(__dirname, "dreamprice_extractor.py");
 
-  const header = await extractHeader(pdfPath);
+    if (!fs.existsSync(pyScript)) {
+      return reject(new Error(`Python extractor not found at: ${pyScript}`));
+    }
 
-  const tabulaData = await runTabula(pdfPath, jarPath);
+    const outDir = opts.saveTo || path.join(__dirname, "..", "output");
 
-  const { columns, rows } = parseDreampriceRows(tabulaData);
+    execFile(
+      PYTHON_EXE,
+      [pyScript, pdfPath, outDir],
+      {
+        maxBuffer: 1024 * 1024 * 50,
+        windowsHide: true,
+      },
+      (err, stdout, stderr) => {
+        if (err) {
+          console.error("❌ Python extractor failed:", stderr || err);
+          return reject(err);
+        }
 
-  const outDir = opts.saveTo || path.join(__dirname, "..", "output");
-  const { jsonPath, xlsxPath } = await saveOutputs(rows, header, outDir);
+        if (!stdout) {
+          return reject(new Error("Python extractor returned no output"));
+        }
 
-  return {
-    header,
-    columns,
-    rows,
-    jsonPath,
-    xlsxPath,
-  };
+        try {
+          const parsed = JSON.parse(stdout);
+
+          // 🔒 Defensive contract validation
+          if (!parsed.success || !Array.isArray(parsed.rows)) {
+            throw new Error("Invalid Python extractor payload");
+          }
+
+          resolve(parsed);
+        } catch (e) {
+          console.error("❌ Invalid JSON from Python:\n", stdout);
+          reject(
+            new Error("Failed to parse Python extractor output: " + e.message)
+          );
+        }
+      }
+    );
+  });
 }
 
 module.exports = { extractDreamprice };

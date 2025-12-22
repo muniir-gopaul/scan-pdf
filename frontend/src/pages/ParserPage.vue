@@ -1,11 +1,11 @@
 <template>
-  <q-page padding>
+  <q-page padding class="pdf-page">
     <MainContainer>
       <div class="row q-col-gutter-xl">
         <!-- LEFT PANEL -->
         <div class="col-6">
           <!-- HEADER INFO -->
-          <q-banner rounded class="header-card q-pa-none">
+          <q-banner rounded class="q-pa-none">
             <!-- CUSTOMER SELECT -->
             <q-select
               outlined
@@ -62,11 +62,17 @@
                   label="Delivery Date"
                   mask="####-##-##"
                   readonly
+                  :error="deliveryDateError"
+                  :error-message="deliveryDateErrorMessage"
                 >
                   <template #append>
                     <q-icon name="event" class="cursor-pointer">
                       <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                        <q-date v-model="header.DeliveryDate" mask="YYYY-MM-DD" />
+                        <q-date
+                          v-model="header.DeliveryDate"
+                          mask="YYYY-MM-DD"
+                          :options="deliveryDateAllowed"
+                        />
                       </q-popup-proxy>
                     </q-icon>
                   </template>
@@ -103,7 +109,11 @@
             </div>
           </q-banner>
         </div>
-        <div class="col-6">
+        <div class="col-6" :class="{ 'disabled-panel': !isCustomerReady }">
+          <q-banner v-if="!isCustomerReady" dense class="bg-grey-3 text-grey-8 q-mb-sm">
+            Please select a customer before extracting a PDF.
+          </q-banner>
+
           <!-- PDF UPLOAD + TEMPLATE -->
           <q-card flat bordered class="q-pa-none">
             <q-card-section>
@@ -122,6 +132,7 @@
                 label="Extraction Template"
                 emit-value
                 map-options
+                :disable="!isCustomerReady"
               />
 
               <q-file
@@ -130,6 +141,7 @@
                 bottom-slots
                 label="Upload PDF"
                 counter
+                :disable="!isCustomerReady"
                 @update:model-value="validateFile"
               >
                 <template #prepend>
@@ -152,7 +164,7 @@
                 color="secondary"
                 icon="search"
                 :loading="loading"
-                :disable="!pdfFile || !templateName"
+                :disable="!isCustomerReady || !pdfFile || !templateName"
                 @click="extractPdf"
               />
             </q-card-actions>
@@ -167,7 +179,7 @@
           <q-card class="glass-card no-shadow">
             <q-card-section class="row items-center justify-between">
               <div>
-                <div class="text-h6">📃 Supplier PDF Table</div>
+                <div class="text-h6">📃 Customer PDF Table</div>
                 <div class="text-caption text-grey">
                   Template: <b>{{ templateName }}</b>
                 </div>
@@ -316,6 +328,37 @@
                     </div>
                   </q-td>
                 </template>
+                <!-- PRICELIST STATUS -->
+                <template #body-cell-PricelistStatus="props">
+                  <q-td :props="props">
+                    <div class="flex flex-center">
+                      <!-- OK -->
+                      <q-badge
+                        v-if="props.row.PricelistStatus === 'PRICELIST_EXISTS'"
+                        color="green"
+                        text-color="white"
+                        class="q-px-sm"
+                      >
+                        OK
+                      </q-badge>
+
+                      <!-- MISSING -->
+                      <q-badge
+                        v-else-if="props.row.PricelistStatus === 'NO_PRICELIST'"
+                        color="red"
+                        text-color="white"
+                        class="q-px-sm"
+                      >
+                        NO PRICE
+                      </q-badge>
+
+                      <!-- ITEM NOT FOUND / UNKNOWN -->
+                      <q-badge v-else color="grey" text-color="white" class="q-px-sm">
+                        N/A
+                      </q-badge>
+                    </div>
+                  </q-td>
+                </template>
 
                 <template #body-cell-NotPostToSAP="props">
                   <q-td :props="props">
@@ -369,7 +412,7 @@
             label="Submit"
             class="rounded-borders q-mt-md"
             :loading="saving"
-            :disable="saving || enrichedRows.length === 0"
+            :disable="saving || enrichedRows.length === 0 || postingToSap"
             @click="saveDocument"
             outline
           />
@@ -393,6 +436,9 @@ const totalLines = computed(() => enrichedRows.value.length)
 
 const postableLines = computed(() => enrichedRows.value.filter((r) => r.CanPostToSAP).length)
 
+const deliveryDateError = ref(false)
+const deliveryDateErrorMessage = ref('')
+
 /* ================== STATE ================== */
 
 const templateName = ref(null)
@@ -409,10 +455,11 @@ const header = ref({
   CustomerName: '',
   PONumber: '',
   OrderDate: '',
-  DeliveryDate: '',
-  PostingDate: null,
+  DeliveryDate: null,
+  PostingDate: todayISO(),
   PostedBy: '',
-  confirmed: 'Yes',
+  confirmed: 'tYES',
+  Pricelist: '',
 })
 
 // RAW
@@ -427,6 +474,8 @@ const enrichedRows = ref([])
 
 const loading = ref(false)
 const saving = ref(false)
+
+const postingToSap = ref(false)
 
 // CUSTOMER SELECT
 const selectedCustomerCode = ref(null)
@@ -444,6 +493,12 @@ const mappedColumns = [
   { name: 'StockQty', label: 'Stock Qty', field: 'StockQty', align: 'center' },
 
   // 🔑 THESE MUST HAVE A FIELD
+  {
+    name: 'PricelistStatus',
+    label: 'Pricelist',
+    field: 'PricelistStatus',
+    align: 'center',
+  },
   { name: 'SAPActive', label: 'SAP Status', field: 'SAPActive', align: 'center' },
   { name: 'NotPostToSAP', label: 'SAP Rules', field: 'NotPostToSAP', align: 'center' },
   { name: 'CanPostToSAP', label: 'SAP Posting', field: 'CanPostToSAP', align: 'center' },
@@ -499,29 +554,78 @@ watch(enrichedRows, () => {
   )
 })
 
+watch(
+  () => header.value.DeliveryDate,
+  (val) => {
+    if (!val) {
+      deliveryDateError.value = false
+      deliveryDateErrorMessage.value = ''
+      return
+    }
+
+    if (val < header.value.PostingDate) {
+      deliveryDateError.value = true
+      deliveryDateErrorMessage.value =
+        'Delivery Date must be the same as or later than Posting Date'
+    } else {
+      deliveryDateError.value = false
+      deliveryDateErrorMessage.value = ''
+    }
+  },
+)
+
+watch(
+  () => header.value.CustomerCode,
+  () => {
+    templateName.value = null
+    pdfFile.value = null
+    rawRows.value = []
+    rawColumns.value = []
+    enrichedRows.value = []
+  },
+)
+const isCustomerReady = computed(() => {
+  return (
+    !!header.value.CustomerCode &&
+    !!header.value.CustomerName &&
+    !!header.value.PostingDate &&
+    !!header.value.DeliveryDate
+  )
+})
+
 /* ================== HELPERS ================== */
+
+function deliveryDateAllowed(date) {
+  // Only allow dates >= PostingDate
+  return date >= header.value.PostingDate
+}
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+}
 
 function getBlockReason(row) {
   if (row.StockQty <= 0) return 'No stock available'
   if (row.StockQty < row.Qty) return 'Insufficient stock'
+  if (row.PricelistStatus === 'NO_PRICELIST') return 'No price defined for customer pricelist'
   return 'Business rules OK'
 }
 
-function fixDate(input) {
-  if (!input) return null
-  const s = String(input).trim()
+// function fixDate(input) {
+//   if (!input) return null
+//   const s = String(input).trim()
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+//   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
 
-  let m = s.match(/^(\d{2})[./-](\d{2})[./-](\d{4})$/)
-  if (m) return `${m[3]}-${m[2]}-${m[1]}`
+//   let m = s.match(/^(\d{2})[./-](\d{2})[./-](\d{4})$/)
+//   if (m) return `${m[3]}-${m[2]}-${m[1]}`
 
-  m = s.match(/^(\d{4})[./-](\d{2})[./-](\d{2})$/)
-  if (m) return `${m[1]}-${m[2]}-${m[3]}`
+//   m = s.match(/^(\d{4})[./-](\d{2})[./-](\d{2})$/)
+//   if (m) return `${m[1]}-${m[2]}-${m[3]}`
 
-  const d = new Date(s)
-  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10)
-}
+//   const d = new Date(s)
+//   return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10)
+// }
 
 const filteredRows = computed(() => {
   if (!showOnlyBlocked.value) return enrichedRows.value
@@ -539,6 +643,7 @@ onMounted(async () => {
 
   try {
     const res = await api.get('/api/customers/codes')
+    console.log(res.data.rows)
     customerOptions.value = res.data.rows.map((c) => ({
       label: `${c.CardCode} - ${c.CardName}`,
       value: c.CardCode,
@@ -557,6 +662,7 @@ const loadCustomerName = async (code) => {
     const res = await api.get(`/api/customers/${code}`)
     header.value.CustomerCode = code
     header.value.CustomerName = res.data.row?.CardName || 'Unknown'
+    header.value.Pricelist = res.data.row?.Pricelist ?? 0
   } catch {
     $q.notify({ type: 'negative', message: 'Customer lookup failed' })
   }
@@ -588,24 +694,25 @@ function buildSapPayload() {
       continue
     }
 
-    const qty = Number(row.Qty ?? 0)
+    const postQty = Number(row.PostQty ?? 0)
 
-    if (qty <= 0) {
-      console.log('⛔ SKIPPED (INVALID QTY)', {
+    if (postQty <= 0) {
+      console.log('⛔ SKIPPED (INVALID POST QTY)', {
         Barcode: row.Barcode,
-        Qty: row.Qty,
+        PostQty: row.PostQty,
+        StockQty: row.StockQty,
       })
       continue
     }
 
     sapLines.push({
       ItemCode: row.ItemCode,
-      Quantity: qty,
+      Quantity: postQty, // ✅ FINAL, RULED QUANTITY
     })
 
     console.log('✅ SAP LINE READY', {
       ItemCode: row.ItemCode,
-      Quantity: qty,
+      Quantity: postQty,
     })
   }
 
@@ -613,7 +720,7 @@ function buildSapPayload() {
     CardCode: header.value.CustomerCode,
     DocDueDate: header.value.DeliveryDate,
     DocDate: header.value.PostingDate,
-    TaxDate: header.value.OrderDate,
+    TaxDate: header.value.PostingDate,
     NumAtCard: header.value.PONumber,
     Confirmed: header.value.confirmed,
     DocumentLines: sapLines,
@@ -625,32 +732,60 @@ function buildSapPayload() {
 async function sendToSap() {
   const sapPayload = buildSapPayload()
 
+  // ⛔ Nothing to post
   if (sapPayload.DocumentLines.length === 0) {
-    return $q.notify({ type: 'warning', message: 'No valid lines to post to SAP.' })
+    return $q.notify({
+      type: 'warning',
+      message: 'No valid lines to post to SAP.',
+    })
   }
+
+  postingToSap.value = true
+
+  // 🔄 SHOW SPINNER NOTIFICATION (AUTO-DISMISS)
+  const dismissLoader = $q.notify({
+    message: 'Posting to SAP…',
+    color: 'info',
+    spinner: true,
+    timeout: 0, // stay until dismissed
+    position: 'top',
+    group: false,
+  })
 
   try {
     const res = await api.post('/api/sap/post', sapPayload)
-    // 🔥 MUST THROW ON BUSINESS FAILURE
-    if (!res.data.success) {
+
+    // 🔥 HARD FAIL ON SAP BUSINESS ERROR
+    if (!res.data?.success) {
       throw { response: { data: res.data } }
     }
 
+    const docNum = res.data?.sapResponse?.DocNum
+
+    // ✅ DISMISS LOADER
+    dismissLoader()
+
+    // ✅ SUCCESS NOTIFICATION
     $q.notify({
       type: 'positive',
-      message: 'Posted to SAP successfully!',
+      message: `Posting to SAP successful! DocNum: ${docNum ?? 'N/A'}`,
+      timeout: 6000,
     })
   } catch (err) {
-    console.error('❌ SAP ERROR:', err)
+    // ✅ DISMISS LOADER
+    dismissLoader()
 
     const message = extractSapMessage(err?.response?.data, err)
 
+    // ❌ ERROR NOTIFICATION
     $q.notify({
       type: 'negative',
       message,
-      timeout: 7000,
+      timeout: 8000,
       multiLine: true,
     })
+  } finally {
+    postingToSap.value = false
   }
 }
 
@@ -712,10 +847,16 @@ const saveDocument = () => {
           ItemCode: row.ItemCode,
           Description: row.DBDescription || row.Description,
           Barcode: row.Barcode,
+
           Quantity: row.Qty || 0,
           UnitPrice: null,
           POPrice: row.UnitPrice || 0,
           StockQty: row.StockQty || 0,
+
+          // ✅ REQUIRED FLAGS
+          SAPActive: row.SAPActive,
+          PricelistStatus: row.PricelistStatus,
+          CanPostToSAP: row.CanPostToSAP,
         })),
       }
 
@@ -757,14 +898,17 @@ const extractPdf = async () => {
 
   rawRows.value = []
   rawColumns.value = []
-  // mappedRows.value = []
-  // mappedColumns.value = []
   enrichedRows.value = []
 
   try {
     const form = new FormData()
+
     form.append('pdf', pdfFile.value)
     form.append('template', templateName.value)
+
+    // ✅ BIND CUSTOMER CONTEXT
+    form.append('customerCode', header.value.CustomerCode || '')
+    form.append('pricelist', header.value.Pricelist || '')
 
     const res = await api.post('/api/extract', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -776,19 +920,25 @@ const extractPdf = async () => {
     const h = json.header || {}
 
     header.value.PONumber = h.PONumber || ''
-    header.value.OrderDate = fixDate(h.OrderDate)
-    header.value.DeliveryDate = fixDate(h.DeliveryDate)
-    header.value.PostingDate = h.PostingDate || null
-
+    // ✅ NEW: Order Date from PDF (fallback safe)
+    if (h.OrderDate) {
+      header.value.OrderDate = h.OrderDate
+    }
     rawColumns.value = json.columnsRaw || []
     rawRows.value = json.rawRows || []
 
-    // mappedRows.value = json.mappedRows || []
+    // ✅ ENRICHED ROWS NOW PRICELIST-AWARE
     enrichedRows.value = json.enrichedRows || []
 
-    $q.notify({ type: 'positive', message: 'PDF extracted successfully!' })
+    $q.notify({
+      type: 'positive',
+      message: 'PDF extracted successfully!',
+    })
   } catch (err) {
-    $q.notify({ type: 'negative', message: 'Failed: ' + err.message })
+    $q.notify({
+      type: 'negative',
+      message: 'Failed: ' + err.message,
+    })
   } finally {
     loading.value = false
   }
@@ -887,5 +1037,9 @@ const extractPdf = async () => {
 
 .q-table tbody tr:last-child {
   border-bottom: none;
+}
+.disabled-panel {
+  opacity: 0.5;
+  pointer-events: none;
 }
 </style>

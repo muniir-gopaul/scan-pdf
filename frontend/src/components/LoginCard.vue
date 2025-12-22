@@ -8,16 +8,32 @@
 
     <q-card-section>
       <q-form @submit.prevent="onSubmit" class="q-gutter-md">
-        <q-input filled v-model="companyDB" label="Company Database" dense autofocus />
+        <!-- COMPANY DATABASE -->
+        <q-select
+          filled
+          v-model="companyDB"
+          :options="companyOptions"
+          label="Company Database"
+          dense
+          emit-value
+          map-options
+          :loading="loadingCompanies"
+          :disable="loadingCompanies"
+          autofocus
+        />
 
+        <!-- USERNAME -->
         <q-input filled v-model="username" label="Username" dense />
 
+        <!-- PASSWORD -->
         <q-input filled v-model="password" label="Password" type="password" dense />
 
+        <!-- ERROR -->
         <div v-if="error" class="text-negative text-center q-mb-sm">
           {{ error }}
         </div>
 
+        <!-- SUBMIT -->
         <div class="row justify-center">
           <q-btn label="Login" type="submit" color="primary" :loading="loading" />
         </div>
@@ -27,13 +43,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { api } from 'src/boot/axios' // ✅ USE CENTRAL API
+import { api } from 'src/boot/axios'
 import { setLoggedIn } from 'src/services/auth'
 
 const companyDB = ref('')
+const companyOptions = ref([])
+const loadingCompanies = ref(false)
+
 const username = ref('')
 const password = ref('')
 const error = ref('')
@@ -42,6 +61,34 @@ const loading = ref(false)
 const router = useRouter()
 const $q = useQuasar()
 
+/* ================== LOAD COMPANY LIST (PUBLIC) ================== */
+onMounted(async () => {
+  loadingCompanies.value = true
+
+  try {
+    const res = await api.get('/api/company/company-dbs')
+
+    companyOptions.value = (res.data.rows || []).map((c) => ({
+      label: c.Company,
+      value: c.CompanyDB,
+    }))
+
+    if (companyOptions.value.length === 1) {
+      companyDB.value = companyOptions.value[0].value
+    }
+  } catch (err) {
+    console.error('❌ Failed loading company DB list:', err)
+
+    $q.notify({
+      type: 'negative',
+      message: 'Unable to load company list',
+    })
+  } finally {
+    loadingCompanies.value = false
+  }
+})
+
+/* ================== LOGIN (PUBLIC) ================== */
 async function onSubmit() {
   error.value = ''
   loading.value = true
@@ -54,29 +101,37 @@ async function onSubmit() {
     })
 
     if (!res.data.success) {
-      error.value = res.data.message
+      error.value = res.data.message || 'Login failed'
       return
     }
 
-    // Extract raw cookie strings
-    const { B1SESSION, ROUTEID } = res.data.cookies
+    const { cookies, sessionId } = res.data
 
-    // Build SAP cookie header EXACTLY as SAP expects
-    const finalCookieString = `${B1SESSION}; ${ROUTEID}`
+    if (!cookies?.B1SESSION || !cookies?.ROUTEID) {
+      throw new Error('Invalid SAP login response (missing cookies)')
+    }
 
-    // Store SAP cookies (auth source of truth)
-    localStorage.setItem('sapCookies', finalCookieString)
-    localStorage.setItem('sapSession', res.data.sessionId)
+    // 🔑 THIS IS THE AUTH SOURCE OF TRUTH
+    const sapCookieString = `${cookies.B1SESSION}; ${cookies.ROUTEID}`
+
+    // 🔐 STORE AUTH
+    localStorage.setItem('sapCookies', sapCookieString)
+    localStorage.setItem('sapSession', sessionId)
     localStorage.setItem('username', username.value)
+
+    // 🔄 SYNC AUTH STATE
+    setLoggedIn(true)
 
     $q.notify({
       type: 'positive',
       message: 'Login Successful',
     })
-    setLoggedIn(true)
-    router.push('/parser') // ✅ protected page
+
+    // 🚀 ROUTE
+    router.push('/parser')
   } catch (err) {
-    error.value = err.response?.data?.message || 'Unable to connect to server'
+    console.error('❌ LOGIN ERROR:', err)
+    error.value = err.response?.data?.message || err.message || 'Unable to login'
   } finally {
     loading.value = false
   }

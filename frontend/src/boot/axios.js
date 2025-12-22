@@ -36,18 +36,29 @@ export default boot(() => {
       const data = error.response?.data
       const url = error.config?.url || ''
 
-      // 🚫 Ignore login endpoint
-      if (url.includes('/api/auth/login')) {
+      // 🚫 IGNORE PUBLIC / BACKEND-ONLY ROUTES
+      const ignoreLogoutRoutes = [
+        '/api/auth/login',
+        '/api/extract',
+        '/api/pdf',
+        '/api/company',
+        '/api/customers',
+      ]
+
+      if (ignoreLogoutRoutes.some((p) => url.includes(p))) {
         return Promise.reject(error)
       }
 
-      const sessionExpired =
+      // 🔐 ONLY SAP-RELATED SESSION EXPIRY
+      const isSapSessionExpired =
         status === 401 ||
         status === 403 ||
-        data?.code === 301 ||
-        data?.message?.toLowerCase().includes('session')
+        (data?.code === 301 && url.includes('/api/sap')) ||
+        (typeof data?.message === 'string' &&
+          data.message.toLowerCase().includes('session') &&
+          url.includes('/api/sap'))
 
-      if (sessionExpired && !isLoggingOut) {
+      if (isSapSessionExpired && !isLoggingOut) {
         isLoggingOut = true
 
         Notify.create({
@@ -56,7 +67,6 @@ export default boot(() => {
           timeout: 3000,
         })
 
-        // ⏳ allow notify to render before redirect
         setTimeout(() => {
           logout('session_expired')
           isLoggingOut = false

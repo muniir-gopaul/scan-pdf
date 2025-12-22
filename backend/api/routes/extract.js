@@ -7,6 +7,7 @@ const upload = multer({ dest: "uploads/" });
 const { extractDreamprice } = require("../../extractors/dreamprice");
 const { extractWinners } = require("../../extractors/winners");
 const enrichMappedRows = require("../../services/enrichMappedRows");
+const requireSapSession = require('../middleware/requireSapSession');
 
 // Load normalizeRow (ERP format builder)
 let normalizeRow = () => ({});
@@ -16,7 +17,7 @@ try {
   console.warn("⚠ normalizeRow not loaded, using fallback mapper");
 }
 
-router.post("/", upload.single("pdf"), async (req, res) => {
+router.post("/",  requireSapSession, upload.single("pdf"), async (req, res) => {
   try {
     const { template } = req.body;
     const pdfPath = req.file.path;
@@ -35,7 +36,7 @@ router.post("/", upload.single("pdf"), async (req, res) => {
     console.log("📄 RAW FIRST ROW:", rawRows[0]);
 
     /*
-     * STEP 2 → Convert raw rows → ERP mapped rows via normalizeRow()
+     * STEP 2 → Convert raw rows → ERP mapped rows
      */
     const normalizedRows = rawRows.map((row) => {
       try {
@@ -49,26 +50,30 @@ router.post("/", upload.single("pdf"), async (req, res) => {
     console.log("🧱 NORMALIZED FIRST ROW:", normalizedRows[0]);
 
     /*
-     * STEP 3 → SANITIZE HEADER (Do not use CustomerCode and CustomerName from the PDF)
+     * STEP 3 → SANITIZE HEADER
      */
     const sanitizedHeader = {
       ...result.header,
-      CustomerCode: "",
-      CustomerName: "",
     };
 
     /*
-     * STEP 4 → Enrich with SAP DB (ItemCode, Stock, DBDescription, etc.)
+     * STEP 4 → READ & NORMALIZE PRICELIST FROM FRONTEND
+     * (FormData always sends strings)
+     */
+    const rawPricelist = req.body.pricelist;
+    const pricelist = Number(rawPricelist) || 0;
+
+    console.log("💰 PRICELIST RECEIVED:", rawPricelist, "→", pricelist);
+
+    /*
+     * STEP 5 → Enrich rows (ItemCode, Stock, Pricelist, Rules)
      */
     console.log("🔥 Enriching", normalizedRows.length, "rows...");
-    const enrichedRows = await enrichMappedRows(normalizedRows);
+    const enrichedRows = await enrichMappedRows(normalizedRows, pricelist);
     console.log("🔥 ENRICHED FIRST ROW:", enrichedRows[0]);
 
     /*
-     * STEP 5 → Send to UI
-     * IMPORTANT:
-     *  - mappedRows contains enrichedRows for the table
-     *  - enrichedRows is also sent separately for saving
+     * STEP 6 → Send to UI
      */
     res.json({
       success: true,
@@ -79,7 +84,6 @@ router.post("/", upload.single("pdf"), async (req, res) => {
       columnsRaw: result.columns,
 
       mappedRows: enrichedRows,
-
       enrichedRows: enrichedRows,
     });
   } catch (err) {
