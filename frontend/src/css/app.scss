@@ -1,1 +1,116 @@
 // app global css in SCSS form
+/* ================================
+   GLOBAL UI TOKENS
+================================ */
+:root {
+  --primary: #1976d2;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --bg-soft: #f8fafc;
+  --card-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+}
+
+body,
+html {
+  font-family: Inter, Roboto, 'Segoe UI', system-ui;
+}
+
+/* ================================
+   CARD
+================================ */
+.q-card.clean-card {
+  border-radius: 14px;
+  box-shadow: var(--card-shadow);
+  border: 1px solid #eef2f7;
+}
+
+/* ================================
+   SECTION TITLES
+================================ */
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ================================
+   BUTTONS
+================================ */
+.btn-primary-action {
+  padding: 0 1rem !important;
+  border-radius: 4px !important;
+  font-weight: 600;
+  text-transform: none;
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 8px 16px rgba(16, 185, 129, 0.25);
+}
+
+.btn-primary-action:disabled {
+  background: #d1d5db;
+  box-shadow: none;
+}
+
+.btn-logout {
+  font-weight: 500;
+  font-size: 1rem;
+  text-transform: none;
+
+  padding: 0 1rem !important;
+  border-radius: 4px !important;
+}
+
+/* ================================
+   TABLE HEADERS
+================================ */
+.q-table.clean-table thead tr {
+  background: linear-gradient(to bottom, #f4f7fb, #eef2f7);
+}
+
+.q-table.clean-table thead th {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1f2937;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #dbe3ec;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+/* Optional: subtle divider between header columns */
+.q-table.clean-table thead th:not(:last-child) {
+  border-right: 1px solid #edf2f7;
+}
+.erp-table thead tr {
+  background: #e9eff6;
+}
+/* ================================
+   ROW STATES
+================================ */
+.row-inactive {
+  background: #fff5f5;
+}
+
+.row-ok {
+  background: #f0fdf4;
+}
+
+.extract-btn {
+  height: 44px;
+  padding: 0 28px;
+  border-radius: 10px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 8px 16px rgba(16, 185, 129, 0.25);
+}
+
+.header {
+  height: 64px;
+  background: linear-gradient(90deg, #0f4c81, #1976d2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+}

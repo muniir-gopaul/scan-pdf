@@ -58,20 +58,19 @@
                 <q-input
                   outlined
                   dense
+                  readonly
                   v-model="header.DeliveryDate"
                   label="Delivery Date"
-                  mask="####-##-##"
-                  readonly
-                  :error="deliveryDateError"
-                  :error-message="deliveryDateErrorMessage"
+                  :error="deliveryDateError.length > 0"
+                  :error-message="deliveryDateError"
                 >
                   <template #append>
                     <q-icon name="event" class="cursor-pointer">
-                      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                      <q-popup-proxy ref="deliveryDatePopup" cover>
                         <q-date
                           v-model="header.DeliveryDate"
                           mask="YYYY-MM-DD"
-                          :options="deliveryDateAllowed"
+                          @update:model-value="onDeliveryDateSelected"
                         />
                       </q-popup-proxy>
                     </q-icon>
@@ -89,13 +88,13 @@
                   mask="####-##-##"
                   readonly
                 >
-                  <template #append>
+                  <!-- <template #append>
                     <q-icon name="event" class="cursor-pointer">
                       <q-popup-proxy cover transition-show="scale" transition-hide="scale">
                         <q-date v-model="header.PostingDate" mask="YYYY-MM-DD" />
                       </q-popup-proxy>
                     </q-icon>
-                  </template>
+                  </template> -->
                 </q-input>
               </div>
               <!-- Confirmed field set to YES by default -->
@@ -161,7 +160,7 @@
               <!-- <q-btn label="Reset" flat color="grey" @click="resetForm" /> -->
               <q-btn
                 label="Extract"
-                color="secondary"
+                class="btn-primary-action q-ma-md"
                 icon="search"
                 :loading="loading"
                 :disable="!isCustomerReady || !pdfFile || !templateName"
@@ -176,10 +175,12 @@
       <!-- ================== RAW SUPPLIER TABLE ================== -->
       <div class="row">
         <div class="col-12">
-          <q-card class="glass-card no-shadow">
+          <q-card class="clean-card q-mt-md">
             <q-card-section class="row items-center justify-between">
-              <div>
-                <div class="text-h6">📃 Customer PDF Table</div>
+              <div class="header-section">
+                <div class="section-title">
+                  <q-icon name="inventory_2" size="18px" /> Customer PDF Table
+                </div>
                 <div class="text-caption text-grey">
                   Template: <b>{{ templateName }}</b>
                 </div>
@@ -194,11 +195,9 @@
               />
             </q-card-section>
 
-            <q-separator />
-
             <q-slide-transition>
               <div v-show="showRawTable">
-                <q-card-section>
+                <q-card-section class="q-pa-none">
                   <div v-if="loading" class="flex flex-center q-pa-xl">
                     <q-spinner size="50px" color="secondary" />
                   </div>
@@ -211,7 +210,9 @@
                     dense
                     flat
                     bordered
-                    class="pretty-table"
+                    class="clean-table erp-table"
+                    v-model:pagination="rawPagination"
+                    :rows-per-page-options="rowsPerPageOptions"
                   />
 
                   <div v-else class="text-grey text-center q-pa-md">No raw data extracted yet.</div>
@@ -226,8 +227,8 @@
     <MainContainer>
       <div class="row">
         <div class="col-12">
-          <q-banner dense class="glass-card q-mb-sm">
-            <div class="row items-center q-col-gutter-md text-caption">
+          <q-banner rounded class="bg-grey-1">
+            <div class="row q-col-gutter-md items-center text-body2">
               <div class="col-auto"><q-badge color="green" /> SAP Active</div>
               <div class="col-auto"><q-badge color="red" /> SAP Inactive</div>
 
@@ -259,10 +260,11 @@
         </div>
       </div>
 
+      <q-separator />
       <!-- ================== MAPPED ERP TABLE ================== -->
       <div class="row">
         <div class="col-12">
-          <q-banner dense class="glass-card q-mb-sm">
+          <q-banner rounded class="bg-grey-1">
             <div class="row q-col-gutter-md text-caption">
               <div v-if="errorSummary.inactive" class="col-auto text-red">
                 ⛔ {{ errorSummary.inactive }} inactive items in SAP
@@ -293,26 +295,33 @@
         </div>
 
         <div class="col-12">
-          <q-card bordered>
-            <q-card-section>
-              <div class="text-h6">📦 Mapped ERP Table</div>
-              <div class="text-caption">Standardized schema</div>
+          <q-card class="clean-card q-mt-md">
+            <q-card-section class="row items-center justify-between">
+              <div class="header-section">
+                <div class="section-title">
+                  <q-icon name="account_tree" size="18px" /> Mapped ERP Table
+                </div>
+                <div class="text-caption text-grey-6">Standardized schema</div>
+              </div>
             </q-card-section>
 
             <q-separator />
 
-            <q-card-section>
+            <q-card-section class="q-pa-none">
               <q-table
                 :key="`${enrichedRows.length}-${showOnlyBlocked}`"
                 :columns="mappedColumns"
                 :rows="filteredRows"
                 row-key="Barcode"
+                sticky-header
                 dense
                 flat
                 bordered
+                v-model:pagination="erpPagination"
+                :rows-per-page-options="rowsPerPageOptions"
                 separator="horizontal"
-                :row-class="rowClass"
-                class="pretty-table"
+                :row-class="erpRowClass"
+                class="clean-table erp-table"
               >
                 <!-- SAP ACTIVE -->
                 <template #body-cell-SAPActive="props">
@@ -436,8 +445,8 @@ const totalLines = computed(() => enrichedRows.value.length)
 
 const postableLines = computed(() => enrichedRows.value.filter((r) => r.CanPostToSAP).length)
 
-const deliveryDateError = ref(false)
-const deliveryDateErrorMessage = ref('')
+const deliveryDatePopup = ref(null)
+const deliveryDateError = ref('')
 
 /* ================== STATE ================== */
 
@@ -504,12 +513,24 @@ const mappedColumns = [
   { name: 'CanPostToSAP', label: 'SAP Posting', field: 'CanPostToSAP', align: 'center' },
 ]
 
-function rowClass(row) {
-  if (row.SAPActive === false) return 'row-sap-inactive'
-  if (row.NotPostToSAP === true) return 'row-business-blocked'
-  if (row.CanPostToSAP === true) return 'row-postable'
-  return ''
-}
+// function rowClass(row) {
+//   if (row.SAPActive === false) return 'row-sap-inactive'
+//   if (row.NotPostToSAP === true) return 'row-business-blocked'
+//   if (row.CanPostToSAP === true) return 'row-postable'
+//   return ''
+// }
+
+const rawPagination = ref({
+  page: 1,
+  rowsPerPage: 0, // ALL default
+})
+
+const erpPagination = ref({
+  page: 1,
+  rowsPerPage: 0, // ALL default
+})
+
+const rowsPerPageOptions = [0, 10, 25, 50, 100]
 
 const errorSummary = computed(() => {
   const summary = {
@@ -555,26 +576,6 @@ watch(enrichedRows, () => {
 })
 
 watch(
-  () => header.value.DeliveryDate,
-  (val) => {
-    if (!val) {
-      deliveryDateError.value = false
-      deliveryDateErrorMessage.value = ''
-      return
-    }
-
-    if (val < header.value.PostingDate) {
-      deliveryDateError.value = true
-      deliveryDateErrorMessage.value =
-        'Delivery Date must be the same as or later than Posting Date'
-    } else {
-      deliveryDateError.value = false
-      deliveryDateErrorMessage.value = ''
-    }
-  },
-)
-
-watch(
   () => header.value.CustomerCode,
   () => {
     templateName.value = null
@@ -595,9 +596,22 @@ const isCustomerReady = computed(() => {
 
 /* ================== HELPERS ================== */
 
-function deliveryDateAllowed(date) {
-  // Only allow dates >= PostingDate
-  return date >= header.value.PostingDate
+function onDeliveryDateSelected(date) {
+  validateDeliveryDate(date)
+  deliveryDatePopup.value?.hide()
+}
+
+function validateDeliveryDate(date) {
+  if (!date || !header.value.PostingDate) {
+    deliveryDateError.value = ''
+    return
+  }
+
+  if (date < header.value.PostingDate) {
+    deliveryDateError.value = 'Delivery Date must be the same as or later than Posting Date'
+  } else {
+    deliveryDateError.value = ''
+  }
 }
 
 function todayISO() {
@@ -634,6 +648,26 @@ const filteredRows = computed(() => {
     (r) => !r.CanPostToSAP, // includes SAP inactive + business blocked
   )
 })
+
+function erpRowClass(row) {
+  // 🔴 SAP inactive = highest priority
+  if (row.SAPActive === false) {
+    return 'row-sap-inactive'
+  }
+
+  // 🟠 Business rule blocked
+  if (row.NotPostToSAP === true) {
+    return 'row-business-blocked'
+  }
+
+  // 🟢 Fully postable
+  if (row.CanPostToSAP === true) {
+    return 'row-postable'
+  }
+
+  // ⚪ Neutral / not evaluated
+  return ''
+}
 
 /* ================== LOAD CUSTOMER LIST ================== */
 
@@ -973,35 +1007,6 @@ const extractPdf = async () => {
   min-height: 100vh;
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-  border-radius: 14px;
-  backdrop-filter: blur(10px);
-}
-
-.header-card {
-  background: linear-gradient(135deg, #e3f2fd, #ffffff);
-  border-radius: 12px;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px 14px;
-  font-size: 13px;
-}
-
-.pretty-table {
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.pretty-table thead tr {
-  background: #f0f4ff;
-  font-weight: 600;
-}
-
 .q-btn {
   border-radius: 9px;
 }
@@ -1009,10 +1014,6 @@ const extractPdf = async () => {
 .row-blocked td,
 .row-blocked {
   background-color: #ffebee !important;
-}
-
-.q-table tbody tr:hover {
-  background-color: #f5f7fa;
 }
 
 /* SAP inactive */
@@ -1041,5 +1042,41 @@ const extractPdf = async () => {
 .disabled-panel {
   opacity: 0.5;
   pointer-events: none;
+}
+
+.extract-btn {
+  color: #fff5f5;
+  font-weight: 500;
+  font-size: 1rem;
+  text-transform: none;
+
+  padding: 0 1rem !important;
+  border-radius: 4px !important;
+  font-weight: 600;
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 8px 16px rgba(16, 185, 129, 0.25);
+}
+
+.upload-box {
+  border: 2px dashed #c7d2fe;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 24px;
+  text-align: center;
+}
+
+.date-field:hover .icon {
+  opacity: 1;
+}
+
+.label {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
 }
 </style>

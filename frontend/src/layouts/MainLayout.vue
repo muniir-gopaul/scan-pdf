@@ -1,22 +1,24 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <q-header elevated>
-      <q-toolbar>
-        <q-toolbar-title> SCAN PDF APPLICATION </q-toolbar-title>
+    <q-header elevated class="header text-white">
+      <q-toolbar class="q-px-lg">
+        <q-toolbar-title class="text-weight-bold"
+          ><q-icon name="document_scanner" size="28px" /> SCAN PDF APPLICATION
+        </q-toolbar-title>
 
         <div class="row items-center q-gutter-md">
           <!-- 🔐 Logout button (only when authenticated + protected route) -->
           <q-btn
             v-if="showLogout"
-            icon-right="logout"
-            size="md"
+            right="logout"
             dense
-            icon-size="10px"
+            icon="logout"
+            size="12px"
             label="Logout"
             @click="onLogout"
-            class="rounded-borders q-mr-md"
-            color="white"
+            class="q-mr-md btn-logout"
             text-color="grey-8"
+            color="white"
           />
         </div>
       </q-toolbar>
