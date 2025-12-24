@@ -103,6 +103,7 @@ function normalizeUiRow(row) {
     SAPActive: row.SAPActive === true,
     NotPostToSAP: row.NotPostToSAP === null ? null : Boolean(row.NotPostToSAP),
     CanPostToSAP: row.CanPostToSAP === true,
+    SAPStatus: row.SAPStatus || "NOT_FOUND",
 
     SAPBarcode: row.SAPBarcode || "",
     DBMatch: Boolean(row.DBMatch),
@@ -136,23 +137,34 @@ async function enrichMappedRows(mappedRows, rawPricelist) {
       Price: null,
       PricelistStatus: "UNKNOWN",
 
-      SAPActive: false,
+      SAPActive: null,
+      SAPStatus: "NOT_FOUND",
       NotPostToSAP: null,
       CanPostToSAP: false,
       DBMatch: false,
     };
 
-    /* ITEM RESOLUTION */
-    if (dbItem) {
+    if (!dbItem) {
+      // ❌ Item does not exist in SAP
+      enriched.SAPStatus = "NOT_FOUND";
+      enriched.SAPActive = null;
+      enriched.PricelistStatus = "ITEM_NOT_FOUND";
+    } else {
+      // ✅ Item exists
       enriched.ItemCode = dbItem.ItemCode;
       enriched.Description = dbItem.ItemName;
       enriched.DBDescription = dbItem.ItemName;
       enriched.StockQty = Number(dbItem.AvailForSale ?? 0);
       enriched.SAPBarcode = dbItem.Barcode;
-      enriched.SAPActive = dbItem.Active === "Y";
       enriched.DBMatch = true;
-    } else {
-      enriched.PricelistStatus = "ITEM_NOT_FOUND";
+
+      if (dbItem.Active === "Y") {
+        enriched.SAPActive = true;
+        enriched.SAPStatus = "ACTIVE";
+      } else {
+        enriched.SAPActive = false;
+        enriched.SAPStatus = "INACTIVE";
+      }
     }
 
     /* PRICELIST VALIDATION */
@@ -173,7 +185,7 @@ async function enrichMappedRows(mappedRows, rawPricelist) {
     const qty = Number(enriched.Qty ?? 0);
     const stock = Number(enriched.StockQty ?? 0);
 
-    if (enriched.SAPActive) {
+    if (enriched.SAPStatus === "ACTIVE") {
       enriched.NotPostToSAP =
         stock <= 0 || enriched.PricelistStatus !== "PRICELIST_EXISTS";
     } else {
@@ -184,8 +196,7 @@ async function enrichMappedRows(mappedRows, rawPricelist) {
 
     /* FINAL POSTING GATE */
     enriched.CanPostToSAP =
-      enriched.SAPActive === true &&
-      Boolean(enriched.ItemCode) &&
+      enriched.SAPStatus === "ACTIVE" &&
       enriched.NotPostToSAP === false &&
       enriched.PostQty > 0 &&
       enriched.PricelistStatus === "PRICELIST_EXISTS";

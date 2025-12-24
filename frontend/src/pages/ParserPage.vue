@@ -255,6 +255,7 @@
                 <q-icon name="cancel" color="red" size="16px" />
                 Blocked — SAP inactive
               </div>
+              <div class="col-auto"><q-badge color="grey" /> SAP Item Not Found</div>
             </div>
           </q-banner>
         </div>
@@ -328,15 +329,28 @@
                   <q-td :props="props">
                     <div class="flex flex-center">
                       <q-badge
-                        :color="props.row.SAPActive ? 'green' : 'red'"
+                        :color="
+                          props.row.SAPStatus === 'ACTIVE'
+                            ? 'green'
+                            : props.row.SAPStatus === 'INACTIVE'
+                              ? 'red'
+                              : 'grey'
+                        "
                         text-color="white"
                         class="q-px-sm"
                       >
-                        {{ props.row.SAPActive ? 'ACTIVE' : 'INACTIVE' }}
+                        {{
+                          props.row.SAPStatus === 'ACTIVE'
+                            ? 'ACTIVE'
+                            : props.row.SAPStatus === 'INACTIVE'
+                              ? 'INACTIVE'
+                              : 'NOT FOUND'
+                        }}
                       </q-badge>
                     </div>
                   </q-td>
                 </template>
+
                 <!-- PRICELIST STATUS -->
                 <template #body-cell-PricelistStatus="props">
                   <q-td :props="props">
@@ -403,7 +417,9 @@
                         size="22px"
                       />
                       <q-icon
-                        v-else-if="props.row.NotPostToSAP === true || props.row.SAPActive === false"
+                        v-else-if="
+                          props.row.NotPostToSAP === true || props.row.SAPStatus !== 'ACTIVE'
+                        "
                         name="cancel"
                         color="red"
                         size="22px"
@@ -421,7 +437,9 @@
             label="Submit"
             class="rounded-borders q-mt-md"
             :loading="saving"
-            :disable="saving || enrichedRows.length === 0 || postingToSap"
+            :disable="
+              saving || enrichedRows.length === 0 || postingToSap || deliveryDateError.length > 0
+            "
             @click="saveDocument"
             outline
           />
@@ -541,12 +559,12 @@ const errorSummary = computed(() => {
   }
 
   for (const row of enrichedRows.value) {
-    if (!row.SAPActive) {
+    if (row.SAPStatus === 'INACTIVE') {
       summary.inactive++
       continue
     }
 
-    if (!row.ItemCode) {
+    if (row.SAPStatus === 'NOT_FOUND') {
       summary.noItem++
       continue
     }
@@ -650,8 +668,8 @@ const filteredRows = computed(() => {
 })
 
 function erpRowClass(row) {
-  // 🔴 SAP inactive = highest priority
-  if (row.SAPActive === false) {
+  // 🔴 NOT FOUND or INACTIVE = highest priority
+  if (row.SAPStatus !== 'ACTIVE') {
     return 'row-sap-inactive'
   }
 

@@ -18,7 +18,7 @@ async function savePdfLines(docEntry, lines) {
       const canPostToSAP = row.CanPostToSAP === true;
 
       const postToSAP = canPostToSAP ? 0 : 1;
-      const isActive = row.SAPActive === true ? 1 : 0;
+      const isActive = row.SAPStatus === "ACTIVE" ? 1 : 0;
       const hasPricelist = row.PricelistStatus === "PRICELIST_EXISTS" ? 1 : 0;
 
       // 🔍 DEBUG TRACE (TEMP — REMOVE LATER)
